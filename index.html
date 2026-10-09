@@ -193,11 +193,11 @@
               <h3 class="text-xs font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
                 <i data-lucide="shield-check" class="w-4 h-4 text-brand-600"></i> Status Sistem Cloud
               </h3>
-              <p class="text-xs text-slate-600 leading-relaxed mb-4">Aplikasi terhubung langsung ke Google Drive & Sheets API. Semua edisi dan akun tersimpan aman di server Google.</p>
+              <p class="text-xs text-slate-600 leading-relaxed mb-4">Aplikasi terhubung langsung ke Google Drive & Sheets API. Dilengkapi caching Dual-Storage (LocalStorage + IndexedDB) agar loading instan.</p>
             </div>
             <div class="text-[11px] text-slate-500 border-t border-slate-100 pt-3 flex justify-between">
-              <span>Status Koneksi:</span>
-              <span class="text-emerald-600 font-bold">Online</span>
+              <span>Status Sistem:</span>
+              <span class="text-emerald-600 font-bold">Online & Synchronized</span>
             </div>
           </div>
         </div>
@@ -519,7 +519,53 @@
     let financeChartInstance = null;
     let cacheFoldersMajalah = [];
     let cacheFoldersBranding = [];
+    let cacheUsersList = [];
     let activeFolderId = null;
+
+    // ==========================================
+    // INDEXEDDB MANAGER (DUAL-STORAGE CACHING)
+    // ==========================================
+    const DB_NAME = 'SidmedCloudDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'appCache';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function setCacheDB(key, data) {
+      try {
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(data, key);
+      } catch (e) {
+        console.warn('IndexedDB Write Error:', e);
+      }
+    }
+
+    async function getCacheDB(key) {
+      try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const req = tx.objectStore(STORE_NAME).get(key);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+        });
+      } catch (e) {
+        return null;
+      }
+    }
 
     window.onload = () => {
       lucide.createIcons();
@@ -577,6 +623,7 @@
           const user = json.data.find(u => String(u.username).toLowerCase() === usernameInput.toLowerCase() && String(u.password) === passwordInput);
           if (user) {
             currentUser = user;
+            // LOCALSTORAGE: Khusus Menyimpan Sesi Login Akun
             localStorage.setItem("app_session", JSON.stringify(user));
             showToast(`Selamat datang, ${user.name || user.username}!`, 'success');
             renderSessionUI();
@@ -594,6 +641,7 @@
     }
 
     function checkSession() {
+      // LOCALSTORAGE: Membaca Sesi Login
       const saved = localStorage.getItem("app_session");
       if (saved) { currentUser = JSON.parse(saved); renderSessionUI(); }
       else { document.getElementById('loginSection').classList.remove('hidden'); document.getElementById('appSection').classList.add('hidden'); }
@@ -646,10 +694,28 @@
     }
 
     async function loadFolders(type) {
+      const cacheKey = `folders_${type}`;
+      
+      // INDEXEDDB: Mengambil data cache lokal agar tampilan langsung muncul instan
+      const cached = await getCacheDB(cacheKey);
+      if (cached) {
+        if (type === 'majalah') {
+          cacheFoldersMajalah = cached;
+          renderFolders(cacheFoldersMajalah, 'gridMajalahFolders', 'majalah');
+          document.getElementById('dashStatMajalah').innerText = cacheFoldersMajalah.length;
+        } else {
+          cacheFoldersBranding = cached;
+          renderFolders(cacheFoldersBranding, 'gridBrandingFolders', 'branding');
+          document.getElementById('dashStatBranding').innerText = cacheFoldersBranding.length;
+        }
+      }
+
+      // Sync data terbaru dari API Google Apps Script
       try {
         const res = await fetch(`${API_URL}?action=getFolders&type=${type}`);
         const json = await res.json();
         if(json.status === 'success') {
+          await setCacheDB(cacheKey, json.data);
           if(type === 'majalah') {
             cacheFoldersMajalah = json.data;
             renderFolders(cacheFoldersMajalah, 'gridMajalahFolders', 'majalah');
@@ -671,7 +737,7 @@
       }
 
       container.innerHTML = folders.map(f => `
-        <div onclick="openFolderDetail('${f.id}', '${f.name}', '${type}')" 
+        <div onclick="openFolderDetail('${f.id}', '${type}')" 
           class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition cursor-pointer flex items-center justify-between">
           <div class="flex items-center gap-3">
             <div class="p-3 ${type === 'majalah' ? 'bg-brand-50 text-brand-600' : 'bg-purple-50 text-purple-600'} rounded-xl">
@@ -708,57 +774,77 @@
       loadFolders(type);
     }
 
-    async function openFolderDetail(folderId, folderName, type) {
+    async function openFolderDetail(folderId, type) {
       activeFolderId = folderId;
+      const folderList = (type === 'majalah') ? cacheFoldersMajalah : cacheFoldersBranding;
+      const targetFolder = folderList.find(f => f.id === folderId);
+      const folderName = targetFolder ? targetFolder.name : "Folder";
+
       document.getElementById(`${type}FoldersView`).classList.add('hidden');
       document.getElementById(`${type}FilesView`).classList.remove('hidden');
       document.getElementById(`currentFolderName${type.charAt(0).toUpperCase() + type.slice(1)}`).innerText = folderName;
 
       const targetGrid = document.getElementById(`grid${type.charAt(0).toUpperCase() + type.slice(1)}Files`);
-      targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Memuat file di dalam folder...</p>`;
+      const cacheKey = `files_${folderId}`;
 
-      const res = await fetch(`${API_URL}?action=getFilesInFolder&folderId=${folderId}`);
-      const json = await res.json();
-      if(json.status === 'success') {
-        if(json.data.length === 0) {
-          targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
-          return;
-        }
-        targetGrid.innerHTML = json.data.map(f => {
-          const isOfficeDoc = f.name.match(/\.(docx?|xlsx?|pptx?|pdf|txt)$/i);
-          
-          return `
-            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-              <div>
-                <div class="flex items-center gap-2 mb-2">
-                  <i data-lucide="file-text" class="w-4 h-4 text-brand-600"></i>
-                  <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
-                </div>
-                <p class="text-[10px] text-slate-400 mb-4">Ukuran: ${f.size}</p>
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <!-- 1. LIHAT / PREVIEW INTERAKTIF (PDF, Gambar, PSD, AI, CDR, Word, Excel) -->
-                <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
-                  Preview
-                </a>
-                
-                <!-- 2. EDIT DOKUMEN OFFICE (Jika berupa file Word/Excel) -->
-                ${isOfficeDoc ? `
-                  <a href="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(f.downloadUrl)}" target="_blank" class="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">
-                    Edit/Docs
-                  </a>
-                ` : ''}
-        
-                <!-- 3. UNDUH FILE -->
-                <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-brand-50 text-brand-600 border border-brand-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
-                  <i data-lucide="download" class="w-3 h-3"></i> Unduh
-                </a>
-              </div>
-            </div>
-          `;
-        }).join('');
-        lucide.createIcons();
+      // INDEXEDDB: Ambil cache daftar file tersimpan
+      const cachedFiles = await getCacheDB(cacheKey);
+      if (cachedFiles && cachedFiles.length > 0) {
+        renderFilesList(cachedFiles, targetGrid);
+      } else {
+        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Memuat file di dalam folder...</p>`;
       }
+
+      // Fetch fresh dari API Google Apps Script
+      try {
+        const res = await fetch(`${API_URL}?action=getFilesInFolder&folderId=${folderId}`);
+        const json = await res.json();
+        if(json.status === 'success') {
+          await setCacheDB(cacheKey, json.data);
+          renderFilesList(json.data, targetGrid);
+        }
+      } catch(e) {}
+    }
+
+    function renderFilesList(files, targetGrid) {
+      if (!files || files.length === 0) {
+        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
+        return;
+      }
+      targetGrid.innerHTML = files.map(f => {
+        const isOfficeDoc = f.name.match(/\.(docx?|xlsx?|pptx?|pdf|txt)$/i);
+        
+        return `
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-2">
+                <i data-lucide="file-text" class="w-4 h-4 text-brand-600"></i>
+                <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
+              </div>
+              <p class="text-[10px] text-slate-400 mb-4">Ukuran: ${f.size}</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <!-- PREVIEW MULTI FORMAT (Gambar, PDF, CDR, PSD, AI, Office) -->
+              <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+                Preview
+              </a>
+              
+              <!-- EDIT KHUSUS DOKUMEN OFFICE -->
+              ${isOfficeDoc ? `
+                <a href="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(f.downloadUrl)}" target="_blank" class="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">
+                  Edit/Docs
+                </a>
+              ` : ''}
+
+              <!-- UNDUH FILE (TERHUBUNG KE DOWNLOADMANAGER HP) -->
+              <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-brand-50 text-brand-600 border border-brand-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                <i data-lucide="download" class="w-3 h-3"></i> Unduh
+              </a>
+            </div>
+          </div>
+        `;
+      }).join('');
+      lucide.createIcons();
     }
 
     function closeFolderView(type) {
@@ -769,6 +855,7 @@
 
     function openUploadModalToCurrentFolder() {
       if(!activeFolderId) return;
+      document.getElementById('uploadFileInput').value = '';
       document.getElementById('uploadModal').classList.remove('hidden');
       document.getElementById('uploadModal').classList.add('flex');
     }
@@ -781,7 +868,8 @@
     async function handleUploadSubmit(e) {
       e.preventDefault();
       const btn = document.getElementById('btnSubmitUpload');
-      const file = document.getElementById('uploadFileInput').files[0];
+      const fileInput = document.getElementById('uploadFileInput');
+      const file = fileInput.files[0];
       if (!file || !activeFolderId) return;
 
       btn.disabled = true;
@@ -801,47 +889,58 @@
 
         showToast("File berhasil diunggah!", 'success');
         btn.disabled = false;
+        fileInput.value = '';
         closeUploadModal();
         
         const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
-        openFolderDetail(activeFolderId, document.getElementById(`currentFolderName${currentType.charAt(0).toUpperCase() + currentType.slice(1)}`).innerText, currentType);
+        openFolderDetail(activeFolderId, currentType);
       };
       reader.readAsDataURL(file);
     }
 
     async function fetchProgress() {
+      const cacheKey = 'progress_tasks';
+
+      // INDEXEDDB: Ambil cache task dulu
+      const cached = await getCacheDB(cacheKey);
+      if (cached) renderProgressUI(cached);
+
       try {
         const res = await fetch(`${API_URL}?action=getProgress`);
         const json = await res.json();
         if (json.status === 'success') {
-          const tasks = json.data;
-          const completed = tasks.filter(t => t.status === 'Selesai').length;
-          const percent = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
-
-          document.getElementById('progressPercentBadge').innerText = `${percent}% Selesai`;
-          document.getElementById('progressBarInner').style.width = `${percent}%`;
-          document.getElementById('dashStatProgress').innerText = `${percent}%`;
-
-          const container = document.getElementById('listProgressTasks');
-          if (tasks.length === 0) { container.innerHTML = `<p class="text-slate-400 text-xs italic">Belum ada task.</p>`; return; }
-
-          container.innerHTML = tasks.map(t => `
-            <div class="flex items-center justify-between p-3 rounded-xl border ${t.status === 'Selesai' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}">
-              <div class="flex items-center gap-3">
-                <input type="checkbox" ${t.status === 'Selesai' ? 'checked' : ''} 
-                  ${currentUser.role !== 'admin' ? 'disabled' : ''}
-                  onchange="toggleTaskStatus(${t.rowId}, this.checked)"
-                  class="w-4 h-4 text-brand-600 rounded border-slate-300 cursor-pointer">
-                <div>
-                  <p class="text-xs font-semibold ${t.status === 'Selesai' ? 'line-through text-slate-400' : 'text-slate-800'}">[Edisi ${t.edisi}] ${t.jobdesk}</p>
-                  <p class="text-[10px] text-slate-400">Diupdate: ${t.diupdate_oleh} (${t.tanggal})</p>
-                </div>
-              </div>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${t.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${t.status}</span>
-            </div>
-          `).join('');
+          await setCacheDB(cacheKey, json.data);
+          renderProgressUI(json.data);
         }
       } catch (e) {}
+    }
+
+    function renderProgressUI(tasks) {
+      const completed = tasks.filter(t => t.status === 'Selesai').length;
+      const percent = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
+
+      document.getElementById('progressPercentBadge').innerText = `${percent}% Selesai`;
+      document.getElementById('progressBarInner').style.width = `${percent}%`;
+      document.getElementById('dashStatProgress').innerText = `${percent}%`;
+
+      const container = document.getElementById('listProgressTasks');
+      if (tasks.length === 0) { container.innerHTML = `<p class="text-slate-400 text-xs italic">Belum ada task.</p>`; return; }
+
+      container.innerHTML = tasks.map(t => `
+        <div class="flex items-center justify-between p-3 rounded-xl border ${t.status === 'Selesai' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}">
+          <div class="flex items-center gap-3">
+            <input type="checkbox" ${t.status === 'Selesai' ? 'checked' : ''} 
+              ${currentUser.role !== 'admin' ? 'disabled' : ''}
+              onchange="toggleTaskStatus(${t.rowId}, this.checked)"
+              class="w-4 h-4 text-brand-600 rounded border-slate-300 cursor-pointer">
+            <div>
+              <p class="text-xs font-semibold ${t.status === 'Selesai' ? 'line-through text-slate-400' : 'text-slate-800'}">[Edisi ${t.edisi}] ${t.jobdesk}</p>
+              <p class="text-[10px] text-slate-400">Diupdate: ${t.diupdate_oleh} (${t.tanggal})</p>
+            </div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${t.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${t.status}</span>
+        </div>
+      `).join('');
     }
 
     async function toggleTaskStatus(rowId, isChecked) {
@@ -867,33 +966,44 @@
     }
 
     async function fetchKeuangan() {
+      const cacheKey = 'keuangan_data';
+
+      // INDEXEDDB: Render data keuangan tersimpan dulu
+      const cached = await getCacheDB(cacheKey);
+      if (cached) renderKeuanganUI(cached.data, cached.summary);
+
       try {
         const res = await fetch(`${API_URL}?action=getKeuangan`);
         const json = await res.json();
         if (json.status === 'success') {
-          const fmt = num => 'Rp ' + Number(num).toLocaleString('id-ID');
-          document.getElementById('finStatIn').innerText = fmt(json.summary.pemasukan);
-          document.getElementById('finStatOut').innerText = fmt(json.summary.pengeluaran);
-          document.getElementById('finStatNet').innerText = fmt(json.summary.saldo);
-          document.getElementById('dashStatSaldo').innerText = fmt(json.summary.saldo);
-
-          if (financeChartInstance) {
-            financeChartInstance.data.datasets[0].data = [json.summary.pemasukan, json.summary.pengeluaran, json.summary.saldo];
-            financeChartInstance.update();
-          }
-
-          const tbody = document.getElementById('tableKeuanganBody');
-          tbody.innerHTML = json.data.map(item => `
-            <tr class="hover:bg-slate-50">
-              <td class="p-3.5 text-slate-500">${item.tanggal}</td>
-              <td class="p-3.5"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${item.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${item.jenis}</span></td>
-              <td class="p-3.5 font-bold text-slate-800">${item.kategori}</td>
-              <td class="p-3.5 text-slate-500">${item.keterangan || '-'}</td>
-              <td class="p-3.5 text-right font-bold ${item.jenis === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600'}">${item.jenis === 'Pemasukan' ? '+' : '-'} ${fmt(item.nominal)}</td>
-            </tr>
-          `).join('');
+          await setCacheDB(cacheKey, json);
+          renderKeuanganUI(json.data, json.summary);
         }
       } catch (e) {}
+    }
+
+    function renderKeuanganUI(dataList, summary) {
+      const fmt = num => 'Rp ' + Number(num).toLocaleString('id-ID');
+      document.getElementById('finStatIn').innerText = fmt(summary.pemasukan);
+      document.getElementById('finStatOut').innerText = fmt(summary.pengeluaran);
+      document.getElementById('finStatNet').innerText = fmt(summary.saldo);
+      document.getElementById('dashStatSaldo').innerText = fmt(summary.saldo);
+
+      if (financeChartInstance) {
+        financeChartInstance.data.datasets[0].data = [summary.pemasukan, summary.pengeluaran, summary.saldo];
+        financeChartInstance.update();
+      }
+
+      const tbody = document.getElementById('tableKeuanganBody');
+      tbody.innerHTML = dataList.map(item => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3.5 text-slate-500">${item.tanggal}</td>
+          <td class="p-3.5"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${item.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${item.jenis}</span></td>
+          <td class="p-3.5 font-bold text-slate-800">${item.kategori}</td>
+          <td class="p-3.5 text-slate-500">${item.keterangan || '-'}</td>
+          <td class="p-3.5 text-right font-bold ${item.jenis === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600'}">${item.jenis === 'Pemasukan' ? '+' : '-'} ${fmt(item.nominal)}</td>
+        </tr>
+      `).join('');
     }
 
     async function handleAddKeuangan(e) {
@@ -906,21 +1016,21 @@
       fetchKeuangan();
     }
 
-    // KELOLA USER & EDIT USER LOGIC
     async function fetchUsersFromSheets() {
       if (currentUser.role !== 'admin') return;
       const res = await fetch(`${API_URL}?action=getUsers`);
       const json = await res.json();
       if (json.status === 'success') {
+        cacheUsersList = json.data;
         const tbody = document.getElementById('listUsersBody');
-        tbody.innerHTML = json.data.map(u => `
+        tbody.innerHTML = cacheUsersList.map(u => `
           <tr class="hover:bg-slate-50">
             <td class="p-3 font-bold text-slate-800">${u.username} <span class="font-normal text-slate-500">(${u.name})</span></td>
             <td class="p-3"><span class="px-2 py-0.5 bg-brand-50 text-brand-700 rounded text-[10px] font-bold uppercase border border-brand-200">${u.role}</span></td>
             <td class="p-3 text-right">
               <div class="flex justify-end gap-3">
-                <button onclick="openEditUserModal(${u.rowId}, '${u.username}', '${u.password}', '${u.name}', '${u.role}')" class="text-brand-600 hover:text-brand-700 font-bold text-xs">Edit</button>
-                ${u.username !== 'admin' ? `<button onclick="deleteUserFromSheets(${u.rowId}, '${u.username}')" class="text-rose-600 font-bold text-xs">Hapus</button>` : '<span class="text-slate-400 text-[10px]">Superadmin</span>'}
+                <button onclick="openEditUserModalByRowId(${u.rowId})" class="text-brand-600 hover:text-brand-700 font-bold text-xs">Edit</button>
+                ${u.username !== 'admin' ? `<button onclick="deleteUserFromSheets(${u.rowId})" class="text-rose-600 font-bold text-xs">Hapus</button>` : '<span class="text-slate-400 text-[10px]">Superadmin</span>'}
               </div>
             </td>
           </tr>
@@ -939,14 +1049,17 @@
       fetchUsersFromSheets();
     }
 
-    function openEditUserModal(rowId, username, password, name, role) {
-      document.getElementById('editRowId').value = rowId;
-      document.getElementById('editUsername').value = username;
-      document.getElementById('editPassword').value = password;
-      document.getElementById('editName').value = name;
+    function openEditUserModalByRowId(rowId) {
+      const u = cacheUsersList.find(item => item.rowId === rowId);
+      if (!u) return;
+
+      document.getElementById('editRowId').value = u.rowId;
+      document.getElementById('editUsername').value = u.username;
+      document.getElementById('editPassword').value = u.password;
+      document.getElementById('editName').value = u.name;
       
       const roleLabels = { admin: 'Admin Pusat', branding: 'Tim Branding', user: 'User / Tim Lain' };
-      selectDropdownOption('editRole', role, 'editRoleLabel', 'editRoleMenu', roleLabels[role] || role);
+      selectDropdownOption('editRole', u.role, 'editRoleLabel', 'editRoleMenu', roleLabels[u.role] || u.role);
 
       document.getElementById('editUserModal').classList.remove('hidden');
       document.getElementById('editUserModal').classList.add('flex');
@@ -981,7 +1094,10 @@
       fetchUsersFromSheets();
     }
 
-    function deleteUserFromSheets(rowId, username) {
+    function deleteUserFromSheets(rowId) {
+      const u = cacheUsersList.find(item => item.rowId === rowId);
+      const username = u ? u.username : 'User';
+
       showDialog("Hapus User", `Hapus user '${username}' dari Google Sheets?`, true).then(async (yes) => {
         if (yes) {
           await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteUser', rowId }) });
