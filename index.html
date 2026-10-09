@@ -229,7 +229,7 @@
               </button>
               <div>
                 <h3 id="currentFolderNameMajalah" class="text-sm font-bold text-slate-900">Folder Edisi</h3>
-                <span class="text-[10px] text-slate-400">Klik tombol Upload di kanan untuk unggah file</span>
+                <span class="text-[10px] text-slate-400">Upload file majalah besar (ratusan MB) didukung</span>
               </div>
             </div>
             <div class="admin-only hidden">
@@ -268,7 +268,7 @@
               </button>
               <div>
                 <h3 id="currentFolderNameBranding" class="text-sm font-bold text-slate-900">Folder Branding</h3>
-                <span class="text-[10px] text-slate-400">Klik tombol Upload di kanan untuk unggah file</span>
+                <span class="text-[10px] text-slate-400">Upload file majalah besar (ratusan MB) didukung</span>
               </div>
             </div>
             <div class="branding-or-admin hidden">
@@ -448,14 +448,13 @@
 
       <form onsubmit="handleUploadSubmit(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Pilih File</label>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Pilih File Majalah / Aset</label>
           <input type="file" id="uploadFileInput" required class="w-full text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
         </div>
 
-        <!-- INDIKATOR PROGRESS PERSEN -->
         <div id="uploadProgressBox" class="hidden space-y-1.5 pt-1">
           <div class="flex justify-between text-[11px] font-bold text-slate-600">
-            <span>Proses Mengunggah...</span>
+            <span id="uploadStatusLabel">Mengunggah...</span>
             <span id="uploadPercentText" class="text-brand-600">0%</span>
           </div>
           <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
@@ -736,6 +735,7 @@
       } catch(e) {}
     }
 
+    // RENDER FOLDER DENGAN TOMBOL HAPUS FOLDER
     function renderFolders(folders, targetId, type) {
       const container = document.getElementById(targetId);
       if(!folders || folders.length === 0) {
@@ -743,10 +743,11 @@
         return;
       }
 
+      const canDelete = (type === 'majalah' && currentUser.role === 'admin') || (type === 'branding' && (currentUser.role === 'admin' || currentUser.role === 'branding'));
+
       container.innerHTML = folders.map(f => `
-        <div onclick="openFolderDetail('${f.id}', '${type}')" 
-          class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition cursor-pointer flex items-center justify-between">
-          <div class="flex items-center gap-3">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div onclick="openFolderDetail('${f.id}', '${type}')" class="flex items-center gap-3 cursor-pointer flex-1 mr-2">
             <div class="p-3 ${type === 'majalah' ? 'bg-brand-50 text-brand-600' : 'bg-purple-50 text-purple-600'} rounded-xl">
               <i data-lucide="folder" class="w-6 h-6"></i>
             </div>
@@ -755,7 +756,14 @@
               <p class="text-[10px] text-slate-400">Dibuat: ${new Date(f.created).toLocaleDateString('id-ID')}</p>
             </div>
           </div>
-          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i>
+          <div class="flex items-center gap-2">
+            ${canDelete ? `
+              <button onclick="handleDeleteFolder('${f.id}', '${f.name}', '${type}')" class="p-2 text-slate-400 hover:text-rose-600 transition" title="Hapus Folder">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            ` : ''}
+            <i data-lucide="chevron-right" onclick="openFolderDetail('${f.id}', '${type}')" class="w-4 h-4 text-slate-400 cursor-pointer"></i>
+          </div>
         </div>
       `).join('');
       lucide.createIcons();
@@ -771,17 +779,14 @@
       }
     }
 
-    // MEMBUAT FOLDER DENGAN ID GOOGLE DRIVE RESMI (AMAN DAN BEBAS BUG UPLOAD)
     async function handleCreateFolder(type) {
-      showToast(`Membuat folder ${type} di Google Drive...`, 'info');
-      
+      showToast(`Membuat folder ${type}...`, 'info');
       try {
         const res = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify({ action: 'createEdisiFolder', type })
         });
         const json = await res.json();
-        
         if (json.status === 'success') {
           showToast("Folder berhasil dibuat!", 'success');
           loadFolders(type, true);
@@ -789,7 +794,30 @@
           showToast("Gagal membuat folder: " + json.message, 'error');
         }
       } catch(e) {
-        showToast("Terjadi kesalahan jaringan saat membuat folder", 'error');
+        showToast("Terjadi kesalahan koneksi", 'error');
+      }
+    }
+
+    // FUNGSI HAPUS FOLDER
+    async function handleDeleteFolder(folderId, folderName, type) {
+      const confirm = await showDialog("Hapus Folder", `Hapus folder '${folderName}' dan seluruh isinya dari Drive?`, true);
+      if (!confirm) return;
+
+      showToast("Menghapus folder...", 'info');
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deleteFolder', folderId })
+        });
+        const json = await res.json();
+        if (json.status === 'success') {
+          showToast("Folder berhasil dihapus!", 'success');
+          loadFolders(type, true);
+        } else {
+          showToast("Gagal hapus folder: " + json.message, 'error');
+        }
+      } catch(e) {
+        showToast("Gagal terhubung ke server", 'error');
       }
     }
 
@@ -823,12 +851,16 @@
       } catch(e) {}
     }
 
-    // RENDER DAFTAR FILE DENGAN THUMBNAIL FOTO
+    // RENDER DAFTAR FILE DENGAN TOMBOL HAPUS FILE
     function renderFilesList(files, targetGrid) {
       if (!files || files.length === 0) {
         targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
         return;
       }
+      
+      const isMajalahView = !document.getElementById('majalahFilesView').classList.contains('hidden');
+      const canDelete = (isMajalahView && currentUser.role === 'admin') || (!isMajalahView && (currentUser.role === 'admin' || currentUser.role === 'branding'));
+
       targetGrid.innerHTML = files.map(f => {
         const isImage = f.name.match(/\.(jpe?g|png|gif|webp|bmp|svg)$/i);
         const isOfficeDoc = f.name.match(/\.(docx?|xlsx?|pptx?|pdf|txt)$/i);
@@ -841,9 +873,16 @@
                   <img src="https://lh3.googleusercontent.com/d/${f.id}" alt="${f.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x200?text=Gambar+Drive';">
                 </div>
               ` : ''}
-              <div class="flex items-center gap-2 mb-1">
-                <i data-lucide="${isImage ? 'image' : 'file-text'}" class="w-4 h-4 text-brand-600 shrink-0"></i>
-                <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <div class="flex items-center gap-2 truncate">
+                  <i data-lucide="${isImage ? 'image' : 'file-text'}" class="w-4 h-4 text-brand-600 shrink-0"></i>
+                  <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
+                </div>
+                ${canDelete ? `
+                  <button onclick="handleDeleteFile('${f.id}', '${f.name}')" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus File">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                ` : ''}
               </div>
               <p class="text-[10px] text-slate-400">Ukuran: ${f.size}</p>
             </div>
@@ -866,6 +905,30 @@
       lucide.createIcons();
     }
 
+    // FUNGSI HAPUS FILE
+    async function handleDeleteFile(fileId, fileName) {
+      const confirm = await showDialog("Hapus File", `Apakah Anda yakin ingin menghapus file '${fileName}'?`, true);
+      if (!confirm) return;
+
+      showToast("Menghapus file...", 'info');
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deleteFile', fileId })
+        });
+        const json = await res.json();
+        if (json.status === 'success') {
+          showToast("File berhasil dihapus!", 'success');
+          const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
+          openFolderDetail(activeFolderId, currentType);
+        } else {
+          showToast("Gagal hapus file: " + json.message, 'error');
+        }
+      } catch(e) {
+        showToast("Gagal terhubung ke server", 'error');
+      }
+    }
+
     function closeFolderView(type) {
       activeFolderId = null;
       document.getElementById(`${type}FilesView`).classList.add('hidden');
@@ -885,83 +948,82 @@
       document.getElementById('uploadModal').classList.remove('flex');
     }
 
-    // UPLOAD DENGAN INDIKATOR PERSEN REALTIME
-    function handleUploadSubmit(e) {
+    // UPLOAD CARA DUKUNGAN FILE MAJALAH BESAR (RESUMABLE CHUNKING UNTUK 100MB+)
+    async function handleUploadSubmit(e) {
       e.preventDefault();
       const fileInput = document.getElementById('uploadFileInput');
       const file = fileInput.files[0];
       if (!file || !activeFolderId) return;
 
-      if (file.size > 15 * 1024 * 1024) {
-        showToast("Ukuran file terlalu besar! Maksimal 15MB.", 'error');
-        return;
-      }
-
       const btn = document.getElementById('btnSubmitUpload');
       const progressBox = document.getElementById('uploadProgressBox');
       const progressBar = document.getElementById('uploadProgressBar');
       const percentText = document.getElementById('uploadPercentText');
+      const statusLabel = document.getElementById('uploadStatusLabel');
 
       btn.disabled = true;
       progressBox.classList.remove('hidden');
+      statusLabel.innerText = "Membuka Sesi Upload...";
       progressBar.style.width = '0%';
       percentText.innerText = '0%';
 
-      const reader = new FileReader();
-      reader.onload = function() {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', API_URL, true);
+      try {
+        // 1. Meminta Upload Session URL dari Apps Script
+        const sessionRes = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'getResumableUploadUrl',
+            targetFolderId: activeFolderId,
+            fileName: file.name,
+            mimeType: file.type
+          })
+        });
 
-        xhr.upload.onprogress = function(event) {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            progressBar.style.width = percent + '%';
-            percentText.innerText = percent + '%';
-          }
-        };
-
-        xhr.onload = function() {
-          btn.disabled = false;
-
-          if (xhr.status === 200) {
-            try {
-              const res = JSON.parse(xhr.responseText);
-              if (res.status === 'success') {
-                showToast("File berhasil diunggah ke Drive!", 'success');
-                fileInput.value = '';
-                closeUploadModal();
-
-                const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
-                openFolderDetail(activeFolderId, currentType);
-              } else {
-                showToast("Gagal upload: " + res.message, 'error');
-                progressBox.classList.add('hidden');
-              }
-            } catch (err) {
-              showToast("Gagal memproses respon server", 'error');
-              progressBox.classList.add('hidden');
-            }
-          } else {
-            showToast("Terjadi kesalahan koneksi server", 'error');
-            progressBox.classList.add('hidden');
-          }
-        };
-
-        xhr.onerror = function() {
+        const sessionJson = await sessionRes.json();
+        if (sessionJson.status !== 'success' || !sessionJson.uploadUrl) {
+          showToast("Gagal membuat sesi upload: " + sessionJson.message, 'error');
           btn.disabled = false;
           progressBox.classList.add('hidden');
-          showToast("Gagal terhubung ke jaringan", 'error');
-        };
+          return;
+        }
 
-        xhr.send(JSON.stringify({
-          action: 'uploadFileToFolder',
-          targetFolderId: activeFolderId,
-          fileName: file.name,
-          fileData: reader.result
-        }));
-      };
+        const uploadUrl = sessionJson.uploadUrl;
+        statusLabel.innerText = "Mengunggah berkas...";
 
-      reader.readAsDataURL(file);
+        // 2. Mengunggah File Besar Bertahap (Chunking 2MB)
+        const chunkSize = 2 * 1024 * 1024; // 2MB per chunk
+        let start = 0;
+
+        while (start < file.size) {
+          const end = Math.min(start + chunkSize, file.size);
+          const chunk = file.slice(start, end);
+
+          const response = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Range': `bytes ${start}-${end - 1}/${file.size}`
+            },
+            body: chunk
+          });
+
+          start = end;
+          const percent = Math.round((start / file.size) * 100);
+          progressBar.style.width = percent + '%';
+          percentText.innerText = percent + '%';
+        }
+
+        showToast("File majalah berhasil diunggah ke Drive!", 'success');
+        fileInput.value = '';
+        closeUploadModal();
+
+        const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
+        openFolderDetail(activeFolderId, currentType);
+
+      } catch (err) {
+        showToast("Gagal upload file: " + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     // ==========================================
