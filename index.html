@@ -229,10 +229,11 @@
               </button>
               <div>
                 <h3 id="currentFolderNameMajalah" class="text-sm font-bold text-slate-900">Folder Edisi</h3>
-                <span class="text-[10px] text-slate-400">Daftar file di dalam folder ini</span>
+                <span class="text-[10px] text-slate-400">Klik tombol Upload di kanan untuk unggah file</span>
               </div>
             </div>
             <div class="admin-only hidden">
+              <!-- TOMBOL UPLOAD UTAMA -->
               <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
                 <i data-lucide="upload" class="w-4 h-4"></i> Upload File ke Folder Ini
               </button>
@@ -268,10 +269,11 @@
               </button>
               <div>
                 <h3 id="currentFolderNameBranding" class="text-sm font-bold text-slate-900">Folder Branding</h3>
-                <span class="text-[10px] text-slate-400">Daftar file di dalam folder ini</span>
+                <span class="text-[10px] text-slate-400">Klik tombol Upload di kanan untuk unggah file</span>
               </div>
             </div>
             <div class="branding-or-admin hidden">
+              <!-- TOMBOL UPLOAD BRANDING -->
               <button onclick="openUploadModalToCurrentFolder()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
                 <i data-lucide="upload" class="w-4 h-4"></i> Upload File ke Folder Ini
               </button>
@@ -287,7 +289,7 @@
           <div class="flex justify-between items-center">
             <div>
               <h2 class="text-sm font-bold text-slate-900">Monitoring Progress Jobdesk Edisi Aktif</h2>
-              <p class="text-xs text-slate-500">Centang tugas yang telah diselesaikan tim</p>
+              <p class="text-xs text-slate-500">Centang atau hapus tugas yang relevan</p>
             </div>
             <span id="progressPercentBadge" class="text-xs font-bold px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">0% Selesai</span>
           </div>
@@ -366,7 +368,7 @@
         </div>
       </section>
 
-      <!-- KELOLA USER (DENGAN EDIT USER) -->
+      <!-- KELOLA USER -->
       <section id="tab-content-users" class="tab-page hidden space-y-6 animate-fadeIn">
         <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
           <div class="flex justify-between items-center">
@@ -376,7 +378,6 @@
             </div>
           </div>
 
-          <!-- FORM TAMBAH USER -->
           <form onsubmit="handleAddUser(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3 pb-4 border-b border-slate-100">
             <input type="text" id="newUsername" required placeholder="Username" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
             <input type="password" id="newPassword" required placeholder="Password" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
@@ -519,6 +520,7 @@
     let financeChartInstance = null;
     let cacheFoldersMajalah = [];
     let cacheFoldersBranding = [];
+    let cacheProgressTasks = [];
     let cacheUsersList = [];
     let activeFolderId = null;
 
@@ -623,7 +625,6 @@
           const user = json.data.find(u => String(u.username).toLowerCase() === usernameInput.toLowerCase() && String(u.password) === passwordInput);
           if (user) {
             currentUser = user;
-            // LOCALSTORAGE: Khusus Menyimpan Sesi Login Akun
             localStorage.setItem("app_session", JSON.stringify(user));
             showToast(`Selamat datang, ${user.name || user.username}!`, 'success');
             renderSessionUI();
@@ -641,7 +642,6 @@
     }
 
     function checkSession() {
-      // LOCALSTORAGE: Membaca Sesi Login
       const saved = localStorage.getItem("app_session");
       if (saved) { currentUser = JSON.parse(saved); renderSessionUI(); }
       else { document.getElementById('loginSection').classList.remove('hidden'); document.getElementById('appSection').classList.add('hidden'); }
@@ -693,10 +693,9 @@
       if(activeMob) activeMob.classList.replace('text-slate-400', 'text-brand-600');
     }
 
-    async function loadFolders(type) {
+    async function loadFolders(type, silent = false) {
       const cacheKey = `folders_${type}`;
       
-      // INDEXEDDB: Mengambil data cache lokal agar tampilan langsung muncul instan
       const cached = await getCacheDB(cacheKey);
       if (cached) {
         if (type === 'majalah') {
@@ -710,7 +709,7 @@
         }
       }
 
-      // Sync data terbaru dari API Google Apps Script
+      // Background Sync ke Google Apps Script
       try {
         const res = await fetch(`${API_URL}?action=getFolders&type=${type}`);
         const json = await res.json();
@@ -732,7 +731,7 @@
     function renderFolders(folders, targetId, type) {
       const container = document.getElementById(targetId);
       if(!folders || folders.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada folder ${type}.</p>`;
+        container.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada folder ${type}. Klik 'Buat Folder Baru' di atas.</p>`;
         return;
       }
 
@@ -764,14 +763,35 @@
       }
     }
 
+    // MEMBUAT FOLDER CARA INSTAN (INSTANT OPTIMISTIC UI)
     async function handleCreateFolder(type) {
-      showToast(`Membuat folder ${type} baru...`, 'info');
-      await fetch(API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'createEdisiFolder', type })
-      });
-      showToast("Folder berhasil dibuat!", 'success');
-      loadFolders(type);
+      showToast(`Membuat folder ${type}...`, 'info');
+      
+      const folderList = (type === 'majalah') ? cacheFoldersMajalah : cacheFoldersBranding;
+      const tempName = type === 'majalah' ? `Edisi ${folderList.length + 1}` : `Folder Branding ${new Date().toLocaleDateString('id-ID')}`;
+      const tempId = "TEMP-" + Date.now();
+      
+      const tempFolder = { id: tempId, name: tempName, created: new Date().toISOString() };
+      folderList.unshift(tempFolder);
+      
+      await setCacheDB(`folders_${type}`, folderList);
+      renderFolders(folderList, type === 'majalah' ? 'gridMajalahFolders' : 'gridBrandingFolders', type);
+      
+      if (type === 'majalah') {
+        document.getElementById('dashStatMajalah').innerText = folderList.length;
+      } else {
+        document.getElementById('dashStatBranding').innerText = folderList.length;
+      }
+
+      // Background Sync Ke Apps Script
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'createEdisiFolder', type })
+        });
+        showToast("Folder tersimpan di Drive!", 'success');
+        loadFolders(type, true);
+      } catch(e) {}
     }
 
     async function openFolderDetail(folderId, type) {
@@ -787,15 +807,13 @@
       const targetGrid = document.getElementById(`grid${type.charAt(0).toUpperCase() + type.slice(1)}Files`);
       const cacheKey = `files_${folderId}`;
 
-      // INDEXEDDB: Ambil cache daftar file tersimpan
       const cachedFiles = await getCacheDB(cacheKey);
       if (cachedFiles && cachedFiles.length > 0) {
         renderFilesList(cachedFiles, targetGrid);
       } else {
-        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Memuat file di dalam folder...</p>`;
+        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
       }
 
-      // Fetch fresh dari API Google Apps Script
       try {
         const res = await fetch(`${API_URL}?action=getFilesInFolder&folderId=${folderId}`);
         const json = await res.json();
@@ -824,19 +842,14 @@
               <p class="text-[10px] text-slate-400 mb-4">Ukuran: ${f.size}</p>
             </div>
             <div class="flex flex-wrap gap-1.5">
-              <!-- PREVIEW MULTI FORMAT (Gambar, PDF, CDR, PSD, AI, Office) -->
               <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
                 Preview
               </a>
-              
-              <!-- EDIT KHUSUS DOKUMEN OFFICE -->
               ${isOfficeDoc ? `
                 <a href="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(f.downloadUrl)}" target="_blank" class="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">
                   Edit/Docs
                 </a>
               ` : ''}
-
-              <!-- UNDUH FILE (TERHUBUNG KE DOWNLOADMANAGER HP) -->
               <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-brand-50 text-brand-600 border border-brand-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
                 <i data-lucide="download" class="w-3 h-3"></i> Unduh
               </a>
@@ -877,40 +890,51 @@
 
       const reader = new FileReader();
       reader.onload = async function() {
-        await fetch(API_URL, {
-          method: 'POST',
-          body: JSON.stringify({
-            action: 'uploadFileToFolder',
-            targetFolderId: activeFolderId,
-            fileName: file.name,
-            fileData: reader.result
-          })
-        });
+        try {
+          await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+              action: 'uploadFileToFolder',
+              targetFolderId: activeFolderId,
+              fileName: file.name,
+              fileData: reader.result
+            })
+          });
 
-        showToast("File berhasil diunggah!", 'success');
-        btn.disabled = false;
-        fileInput.value = '';
-        closeUploadModal();
-        
-        const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
-        openFolderDetail(activeFolderId, currentType);
+          showToast("File berhasil diunggah!", 'success');
+          btn.disabled = false;
+          fileInput.value = '';
+          closeUploadModal();
+          
+          const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
+          openFolderDetail(activeFolderId, currentType);
+        } catch(err) {
+          showToast("Gagal upload file!", 'error');
+          btn.disabled = false;
+        }
       };
       reader.readAsDataURL(file);
     }
 
-    async function fetchProgress() {
+    // ==========================================
+    // PROGRESS JOBDESK (INSTANT & DENGAN TOMBOL HAPUS)
+    // ==========================================
+    async function fetchProgress(silent = false) {
       const cacheKey = 'progress_tasks';
 
-      // INDEXEDDB: Ambil cache task dulu
       const cached = await getCacheDB(cacheKey);
-      if (cached) renderProgressUI(cached);
+      if (cached) {
+        cacheProgressTasks = cached;
+        renderProgressUI(cacheProgressTasks);
+      }
 
       try {
         const res = await fetch(`${API_URL}?action=getProgress`);
         const json = await res.json();
         if (json.status === 'success') {
-          await setCacheDB(cacheKey, json.data);
-          renderProgressUI(json.data);
+          cacheProgressTasks = json.data;
+          await setCacheDB(cacheKey, cacheProgressTasks);
+          renderProgressUI(cacheProgressTasks);
         }
       } catch (e) {}
     }
@@ -938,21 +962,93 @@
               <p class="text-[10px] text-slate-400">Diupdate: ${t.diupdate_oleh} (${t.tanggal})</p>
             </div>
           </div>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${t.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${t.status}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${t.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${t.status}</span>
+            ${currentUser.role === 'admin' ? `
+              <button onclick="handleDeleteJobdesk(${t.rowId})" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus Task">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            ` : ''}
+          </div>
         </div>
       `).join('');
+      lucide.createIcons();
     }
 
+    // CENTANG INSTAN (0 Milidetik)
     async function toggleTaskStatus(rowId, isChecked) {
-      await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'updateProgress', rowId, status: isChecked ? 'Selesai' : 'Belum', user: currentUser.username.toUpperCase() }) });
-      fetchProgress();
+      const task = cacheProgressTasks.find(t => t.rowId === rowId);
+      if (task) {
+        task.status = isChecked ? 'Selesai' : 'Belum';
+        task.diupdate_oleh = currentUser.username.toUpperCase();
+        task.tanggal = new Date().toLocaleString('id-ID');
+      }
+
+      await setCacheDB('progress_tasks', cacheProgressTasks);
+      renderProgressUI(cacheProgressTasks);
+
+      // Background Sync
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'updateProgress', rowId, status: isChecked ? 'Selesai' : 'Belum', user: currentUser.username.toUpperCase() })
+        });
+      } catch(e) {}
     }
 
+    // TAMBAH INSTAN (0 Milidetik)
     async function handleAddJobdesk(e) {
       e.preventDefault();
-      await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addJobdesk', edisi: document.getElementById('inputEdisi').value, jobdesk: document.getElementById('inputJobdesk').value, user: currentUser.username.toUpperCase() }) });
-      document.getElementById('inputEdisi').value = ''; document.getElementById('inputJobdesk').value = '';
-      fetchProgress();
+      const edisi = document.getElementById('inputEdisi').value;
+      const jobdesk = document.getElementById('inputJobdesk').value;
+      if (!edisi || !jobdesk) return;
+
+      const tempRowId = Date.now();
+      const newTask = {
+        rowId: tempRowId,
+        id: "TASK-" + tempRowId,
+        edisi: edisi,
+        jobdesk: jobdesk,
+        status: 'Belum',
+        diupdate_oleh: currentUser.username.toUpperCase(),
+        tanggal: new Date().toLocaleString('id-ID')
+      };
+
+      cacheProgressTasks.push(newTask);
+      await setCacheDB('progress_tasks', cacheProgressTasks);
+      renderProgressUI(cacheProgressTasks);
+
+      document.getElementById('inputEdisi').value = '';
+      document.getElementById('inputJobdesk').value = '';
+      showToast("Task berhasil ditambahkan!", 'success');
+
+      // Background Sync
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'addJobdesk', edisi, jobdesk, user: currentUser.username.toUpperCase() })
+        });
+        fetchProgress(true);
+      } catch(e) {}
+    }
+
+    // HAPUS INSTAN (0 Milidetik)
+    async function handleDeleteJobdesk(rowId) {
+      const confirm = await showDialog("Hapus Task", "Apakah Anda yakin ingin menghapus task ini?", true);
+      if (!confirm) return;
+
+      cacheProgressTasks = cacheProgressTasks.filter(t => t.rowId !== rowId);
+      await setCacheDB('progress_tasks', cacheProgressTasks);
+      renderProgressUI(cacheProgressTasks);
+      showToast("Task dihapus!", 'info');
+
+      // Background Sync
+      try {
+        await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'deleteJobdesk', rowId })
+        });
+      } catch(e) {}
     }
 
     function initChart() {
@@ -968,7 +1064,6 @@
     async function fetchKeuangan() {
       const cacheKey = 'keuangan_data';
 
-      // INDEXEDDB: Render data keuangan tersimpan dulu
       const cached = await getCacheDB(cacheKey);
       if (cached) renderKeuanganUI(cached.data, cached.summary);
 
