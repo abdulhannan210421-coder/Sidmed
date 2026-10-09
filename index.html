@@ -222,19 +222,22 @@
         </div>
 
         <div id="majalahFilesView" class="hidden space-y-4">
-          <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm gap-3">
             <div class="flex items-center gap-3">
               <button onclick="closeFolderView('majalah')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
               </button>
               <div>
                 <h3 id="currentFolderNameMajalah" class="text-sm font-bold text-slate-900">Folder Edisi</h3>
-                <span class="text-[10px] text-slate-400">Upload file majalah besar (ratusan MB) didukung</span>
+                <span class="text-[10px] text-slate-400">Pilih opsi upload di sebelah kanan</span>
               </div>
             </div>
-            <div class="admin-only hidden">
-              <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <i data-lucide="upload" class="w-4 h-4"></i> Upload File ke Folder Ini
+            <div class="admin-only hidden flex flex-wrap gap-2">
+              <a id="btnOpenDriveAppMajalah" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <i data-lucide="external-link" class="w-4 h-4"></i> Buka di App Drive (Rekomendasi File Besar)
+              </a>
+              <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <i data-lucide="upload" class="w-4 h-4"></i> Upload via Web
               </button>
             </div>
           </div>
@@ -261,19 +264,22 @@
         </div>
 
         <div id="brandingFilesView" class="hidden space-y-4">
-          <div class="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+          <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm gap-3">
             <div class="flex items-center gap-3">
               <button onclick="closeFolderView('branding')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
               </button>
               <div>
                 <h3 id="currentFolderNameBranding" class="text-sm font-bold text-slate-900">Folder Branding</h3>
-                <span class="text-[10px] text-slate-400">Upload file majalah besar (ratusan MB) didukung</span>
+                <span class="text-[10px] text-slate-400">Pilih opsi upload di sebelah kanan</span>
               </div>
             </div>
-            <div class="branding-or-admin hidden">
-              <button onclick="openUploadModalToCurrentFolder()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <i data-lucide="upload" class="w-4 h-4"></i> Upload File ke Folder Ini
+            <div class="branding-or-admin hidden flex flex-wrap gap-2">
+              <a id="btnOpenDriveAppBranding" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <i data-lucide="external-link" class="w-4 h-4"></i> Buka di App Drive (Rekomendasi File Besar)
+              </a>
+              <button onclick="openUploadModalToCurrentFolder()" class="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <i data-lucide="upload" class="w-4 h-4"></i> Upload via Web
               </button>
             </div>
           </div>
@@ -442,7 +448,7 @@
   <div id="uploadModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
     <div class="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-200">
       <div class="flex justify-between items-center mb-4">
-        <h3 id="uploadModalTitle" class="text-sm font-bold text-slate-900">Upload File ke Folder</h3>
+        <h3 id="uploadModalTitle" class="text-sm font-bold text-slate-900">Upload File via Web</h3>
         <button onclick="closeUploadModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
@@ -735,7 +741,6 @@
       } catch(e) {}
     }
 
-    // RENDER FOLDER DENGAN TOMBOL HAPUS FOLDER
     function renderFolders(folders, targetId, type) {
       const container = document.getElementById(targetId);
       if(!folders || folders.length === 0) {
@@ -798,7 +803,6 @@
       }
     }
 
-    // FUNGSI HAPUS FOLDER
     async function handleDeleteFolder(folderId, folderName, type) {
       const confirm = await showDialog("Hapus Folder", `Hapus folder '${folderName}' dan seluruh isinya dari Drive?`, true);
       if (!confirm) return;
@@ -831,6 +835,14 @@
       document.getElementById(`${type}FilesView`).classList.remove('hidden');
       document.getElementById(`currentFolderName${type.charAt(0).toUpperCase() + type.slice(1)}`).innerText = folderName;
 
+      // SET LINK BUKA APLIKASI DRIVE HP
+      const driveAppUrl = `https://drive.google.com/drive/folders/${folderId}`;
+      if (type === 'majalah') {
+        document.getElementById('btnOpenDriveAppMajalah').href = driveAppUrl;
+      } else {
+        document.getElementById('btnOpenDriveAppBranding').href = driveAppUrl;
+      }
+
       const targetGrid = document.getElementById(`grid${type.charAt(0).toUpperCase() + type.slice(1)}Files`);
       const cacheKey = `files_${folderId}`;
 
@@ -851,7 +863,6 @@
       } catch(e) {}
     }
 
-    // RENDER DAFTAR FILE DENGAN TOMBOL HAPUS FILE
     function renderFilesList(files, targetGrid) {
       if (!files || files.length === 0) {
         targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
@@ -905,7 +916,6 @@
       lucide.createIcons();
     }
 
-    // FUNGSI HAPUS FILE
     async function handleDeleteFile(fileId, fileName) {
       const confirm = await showDialog("Hapus File", `Apakah Anda yakin ingin menghapus file '${fileName}'?`, true);
       if (!confirm) return;
@@ -948,7 +958,6 @@
       document.getElementById('uploadModal').classList.remove('flex');
     }
 
-    // UPLOAD CARA DUKUNGAN FILE MAJALAH BESAR (RESUMABLE CHUNKING UNTUK 100MB+)
     async function handleUploadSubmit(e) {
       e.preventDefault();
       const fileInput = document.getElementById('uploadFileInput');
@@ -963,12 +972,11 @@
 
       btn.disabled = true;
       progressBox.classList.remove('hidden');
-      statusLabel.innerText = "Membuka Sesi Upload...";
+      statusLabel.innerText = "Meminta sesi upload...";
       progressBar.style.width = '0%';
       percentText.innerText = '0%';
 
       try {
-        // 1. Meminta Upload Session URL dari Apps Script
         const sessionRes = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify({
@@ -990,7 +998,6 @@
         const uploadUrl = sessionJson.uploadUrl;
         statusLabel.innerText = "Mengunggah berkas...";
 
-        // 2. Mengunggah File Besar Bertahap (Chunking 2MB)
         const chunkSize = 2 * 1024 * 1024; // 2MB per chunk
         let start = 0;
 
@@ -998,7 +1005,7 @@
           const end = Math.min(start + chunkSize, file.size);
           const chunk = file.slice(start, end);
 
-          const response = await fetch(uploadUrl, {
+          await fetch(uploadUrl, {
             method: 'PUT',
             headers: {
               'Content-Range': `bytes ${start}-${end - 1}/${file.size}`
@@ -1012,7 +1019,7 @@
           percentText.innerText = percent + '%';
         }
 
-        showToast("File majalah berhasil diunggah ke Drive!", 'success');
+        showToast("File berhasil diunggah!", 'success');
         fileInput.value = '';
         closeUploadModal();
 
