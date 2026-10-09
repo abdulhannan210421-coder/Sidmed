@@ -724,23 +724,39 @@
           targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
           return;
         }
-        targetGrid.innerHTML = json.data.map(f => `
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-            <div>
-              <div class="flex items-center gap-2 mb-2">
-                <i data-lucide="file-text" class="w-4 h-4 text-brand-600"></i>
-                <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
+        targetGrid.innerHTML = json.data.map(f => {
+          const isOfficeDoc = f.name.match(/\.(docx?|xlsx?|pptx?|pdf|txt)$/i);
+          
+          return `
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+              <div>
+                <div class="flex items-center gap-2 mb-2">
+                  <i data-lucide="file-text" class="w-4 h-4 text-brand-600"></i>
+                  <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
+                </div>
+                <p class="text-[10px] text-slate-400 mb-4">Ukuran: ${f.size}</p>
               </div>
-              <p class="text-[10px] text-slate-400 mb-4">Ukuran: ${f.size}</p>
+              <div class="flex flex-wrap gap-1.5">
+                <!-- 1. LIHAT / PREVIEW INTERAKTIF (PDF, Gambar, PSD, AI, CDR, Word, Excel) -->
+                <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+                  Preview
+                </a>
+                
+                <!-- 2. EDIT DOKUMEN OFFICE (Jika berupa file Word/Excel) -->
+                ${isOfficeDoc ? `
+                  <a href="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(f.downloadUrl)}" target="_blank" class="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">
+                    Edit/Docs
+                  </a>
+                ` : ''}
+        
+                <!-- 3. UNDUH FILE -->
+                <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-brand-50 text-brand-600 border border-brand-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                  <i data-lucide="download" class="w-3 h-3"></i> Unduh
+                </a>
+              </div>
             </div>
-            <div class="flex gap-2">
-              <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Buka</a>
-              <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-brand-50 text-brand-600 border border-brand-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
-                <i data-lucide="download" class="w-3 h-3"></i> Unduh
-              </a>
-            </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
         lucide.createIcons();
       }
     }
