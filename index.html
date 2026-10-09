@@ -233,7 +233,6 @@
               </div>
             </div>
             <div class="admin-only hidden">
-              <!-- TOMBOL UPLOAD UTAMA -->
               <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
                 <i data-lucide="upload" class="w-4 h-4"></i> Upload File ke Folder Ini
               </button>
@@ -273,7 +272,6 @@
               </div>
             </div>
             <div class="branding-or-admin hidden">
-              <!-- TOMBOL UPLOAD BRANDING -->
               <button onclick="openUploadModalToCurrentFolder()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
                 <i data-lucide="upload" class="w-4 h-4"></i> Upload File ke Folder Ini
               </button>
@@ -440,7 +438,7 @@
     </nav>
   </div>
 
-  <!-- UPLOAD MODAL -->
+  <!-- UPLOAD MODAL DENGAN PROGRESS BAR -->
   <div id="uploadModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
     <div class="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-200">
       <div class="flex justify-between items-center mb-4">
@@ -452,6 +450,17 @@
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Pilih File</label>
           <input type="file" id="uploadFileInput" required class="w-full text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+        </div>
+
+        <!-- INDIKATOR PROGRESS PERSEN -->
+        <div id="uploadProgressBox" class="hidden space-y-1.5 pt-1">
+          <div class="flex justify-between text-[11px] font-bold text-slate-600">
+            <span>Proses Mengunggah...</span>
+            <span id="uploadPercentText" class="text-brand-600">0%</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
+            <div id="uploadProgressBar" class="bg-brand-600 h-full w-0 transition-all duration-200 rounded-full"></div>
+          </div>
         </div>
 
         <div class="flex justify-end gap-2 pt-2">
@@ -709,7 +718,6 @@
         }
       }
 
-      // Background Sync ke Google Apps Script
       try {
         const res = await fetch(`${API_URL}?action=getFolders&type=${type}`);
         const json = await res.json();
@@ -763,35 +771,26 @@
       }
     }
 
-    // MEMBUAT FOLDER CARA INSTAN (INSTANT OPTIMISTIC UI)
+    // MEMBUAT FOLDER DENGAN ID GOOGLE DRIVE RESMI (AMAN DAN BEBAS BUG UPLOAD)
     async function handleCreateFolder(type) {
-      showToast(`Membuat folder ${type}...`, 'info');
+      showToast(`Membuat folder ${type} di Google Drive...`, 'info');
       
-      const folderList = (type === 'majalah') ? cacheFoldersMajalah : cacheFoldersBranding;
-      const tempName = type === 'majalah' ? `Edisi ${folderList.length + 1}` : `Folder Branding ${new Date().toLocaleDateString('id-ID')}`;
-      const tempId = "TEMP-" + Date.now();
-      
-      const tempFolder = { id: tempId, name: tempName, created: new Date().toISOString() };
-      folderList.unshift(tempFolder);
-      
-      await setCacheDB(`folders_${type}`, folderList);
-      renderFolders(folderList, type === 'majalah' ? 'gridMajalahFolders' : 'gridBrandingFolders', type);
-      
-      if (type === 'majalah') {
-        document.getElementById('dashStatMajalah').innerText = folderList.length;
-      } else {
-        document.getElementById('dashStatBranding').innerText = folderList.length;
-      }
-
-      // Background Sync Ke Apps Script
       try {
-        await fetch(API_URL, {
+        const res = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify({ action: 'createEdisiFolder', type })
         });
-        showToast("Folder tersimpan di Drive!", 'success');
-        loadFolders(type, true);
-      } catch(e) {}
+        const json = await res.json();
+        
+        if (json.status === 'success') {
+          showToast("Folder berhasil dibuat!", 'success');
+          loadFolders(type, true);
+        } else {
+          showToast("Gagal membuat folder: " + json.message, 'error');
+        }
+      } catch(e) {
+        showToast("Terjadi kesalahan jaringan saat membuat folder", 'error');
+      }
     }
 
     async function openFolderDetail(folderId, type) {
@@ -824,24 +823,31 @@
       } catch(e) {}
     }
 
+    // RENDER DAFTAR FILE DENGAN THUMBNAIL FOTO
     function renderFilesList(files, targetGrid) {
       if (!files || files.length === 0) {
         targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
         return;
       }
       targetGrid.innerHTML = files.map(f => {
+        const isImage = f.name.match(/\.(jpe?g|png|gif|webp|bmp|svg)$/i);
         const isOfficeDoc = f.name.match(/\.(docx?|xlsx?|pptx?|pdf|txt)$/i);
         
         return `
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-3">
             <div>
-              <div class="flex items-center gap-2 mb-2">
-                <i data-lucide="file-text" class="w-4 h-4 text-brand-600"></i>
+              ${isImage ? `
+                <div class="w-full h-36 bg-slate-100 rounded-xl overflow-hidden mb-3 border border-slate-200/60 flex items-center justify-center">
+                  <img src="https://lh3.googleusercontent.com/d/${f.id}" alt="${f.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x200?text=Gambar+Drive';">
+                </div>
+              ` : ''}
+              <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="${isImage ? 'image' : 'file-text'}" class="w-4 h-4 text-brand-600 shrink-0"></i>
                 <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
               </div>
-              <p class="text-[10px] text-slate-400 mb-4">Ukuran: ${f.size}</p>
+              <p class="text-[10px] text-slate-400">Ukuran: ${f.size}</p>
             </div>
-            <div class="flex flex-wrap gap-1.5">
+            <div class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
               <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
                 Preview
               </a>
@@ -869,6 +875,7 @@
     function openUploadModalToCurrentFolder() {
       if(!activeFolderId) return;
       document.getElementById('uploadFileInput').value = '';
+      document.getElementById('uploadProgressBox').classList.add('hidden');
       document.getElementById('uploadModal').classList.remove('hidden');
       document.getElementById('uploadModal').classList.add('flex');
     }
@@ -878,46 +885,87 @@
       document.getElementById('uploadModal').classList.remove('flex');
     }
 
-    async function handleUploadSubmit(e) {
+    // UPLOAD DENGAN INDIKATOR PERSEN REALTIME
+    function handleUploadSubmit(e) {
       e.preventDefault();
-      const btn = document.getElementById('btnSubmitUpload');
       const fileInput = document.getElementById('uploadFileInput');
       const file = fileInput.files[0];
       if (!file || !activeFolderId) return;
 
+      if (file.size > 15 * 1024 * 1024) {
+        showToast("Ukuran file terlalu besar! Maksimal 15MB.", 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitUpload');
+      const progressBox = document.getElementById('uploadProgressBox');
+      const progressBar = document.getElementById('uploadProgressBar');
+      const percentText = document.getElementById('uploadPercentText');
+
       btn.disabled = true;
-      showToast("Mengunggah file ke Drive...", 'info');
+      progressBox.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      percentText.innerText = '0%';
 
       const reader = new FileReader();
-      reader.onload = async function() {
-        try {
-          await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'uploadFileToFolder',
-              targetFolderId: activeFolderId,
-              fileName: file.name,
-              fileData: reader.result
-            })
-          });
+      reader.onload = function() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', API_URL, true);
 
-          showToast("File berhasil diunggah!", 'success');
+        xhr.upload.onprogress = function(event) {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            progressBar.style.width = percent + '%';
+            percentText.innerText = percent + '%';
+          }
+        };
+
+        xhr.onload = function() {
           btn.disabled = false;
-          fileInput.value = '';
-          closeUploadModal();
-          
-          const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
-          openFolderDetail(activeFolderId, currentType);
-        } catch(err) {
-          showToast("Gagal upload file!", 'error');
+
+          if (xhr.status === 200) {
+            try {
+              const res = JSON.parse(xhr.responseText);
+              if (res.status === 'success') {
+                showToast("File berhasil diunggah ke Drive!", 'success');
+                fileInput.value = '';
+                closeUploadModal();
+
+                const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
+                openFolderDetail(activeFolderId, currentType);
+              } else {
+                showToast("Gagal upload: " + res.message, 'error');
+                progressBox.classList.add('hidden');
+              }
+            } catch (err) {
+              showToast("Gagal memproses respon server", 'error');
+              progressBox.classList.add('hidden');
+            }
+          } else {
+            showToast("Terjadi kesalahan koneksi server", 'error');
+            progressBox.classList.add('hidden');
+          }
+        };
+
+        xhr.onerror = function() {
           btn.disabled = false;
-        }
+          progressBox.classList.add('hidden');
+          showToast("Gagal terhubung ke jaringan", 'error');
+        };
+
+        xhr.send(JSON.stringify({
+          action: 'uploadFileToFolder',
+          targetFolderId: activeFolderId,
+          fileName: file.name,
+          fileData: reader.result
+        }));
       };
+
       reader.readAsDataURL(file);
     }
 
     // ==========================================
-    // PROGRESS JOBDESK (INSTANT & DENGAN TOMBOL HAPUS)
+    // PROGRESS JOBDESK
     // ==========================================
     async function fetchProgress(silent = false) {
       const cacheKey = 'progress_tasks';
@@ -975,7 +1023,6 @@
       lucide.createIcons();
     }
 
-    // CENTANG INSTAN (0 Milidetik)
     async function toggleTaskStatus(rowId, isChecked) {
       const task = cacheProgressTasks.find(t => t.rowId === rowId);
       if (task) {
@@ -987,7 +1034,6 @@
       await setCacheDB('progress_tasks', cacheProgressTasks);
       renderProgressUI(cacheProgressTasks);
 
-      // Background Sync
       try {
         await fetch(API_URL, {
           method: 'POST',
@@ -996,43 +1042,31 @@
       } catch(e) {}
     }
 
-    // TAMBAH INSTAN (0 Milidetik)
     async function handleAddJobdesk(e) {
       e.preventDefault();
       const edisi = document.getElementById('inputEdisi').value;
       const jobdesk = document.getElementById('inputJobdesk').value;
       if (!edisi || !jobdesk) return;
 
-      const tempRowId = Date.now();
-      const newTask = {
-        rowId: tempRowId,
-        id: "TASK-" + tempRowId,
-        edisi: edisi,
-        jobdesk: jobdesk,
-        status: 'Belum',
-        diupdate_oleh: currentUser.username.toUpperCase(),
-        tanggal: new Date().toLocaleString('id-ID')
-      };
-
-      cacheProgressTasks.push(newTask);
-      await setCacheDB('progress_tasks', cacheProgressTasks);
-      renderProgressUI(cacheProgressTasks);
-
       document.getElementById('inputEdisi').value = '';
       document.getElementById('inputJobdesk').value = '';
-      showToast("Task berhasil ditambahkan!", 'success');
+      showToast("Menambahkan task...", 'info');
 
-      // Background Sync
       try {
-        await fetch(API_URL, {
+        const res = await fetch(API_URL, {
           method: 'POST',
           body: JSON.stringify({ action: 'addJobdesk', edisi, jobdesk, user: currentUser.username.toUpperCase() })
         });
-        fetchProgress(true);
-      } catch(e) {}
+        const json = await res.json();
+        if (json.status === 'success') {
+          showToast("Task berhasil disimpan!", 'success');
+          fetchProgress(true);
+        }
+      } catch(e) {
+        showToast("Gagal terhubung ke server", 'error');
+      }
     }
 
-    // HAPUS INSTAN (0 Milidetik)
     async function handleDeleteJobdesk(rowId) {
       const confirm = await showDialog("Hapus Task", "Apakah Anda yakin ingin menghapus task ini?", true);
       if (!confirm) return;
@@ -1042,7 +1076,6 @@
       renderProgressUI(cacheProgressTasks);
       showToast("Task dihapus!", 'info');
 
-      // Background Sync
       try {
         await fetch(API_URL, {
           method: 'POST',
