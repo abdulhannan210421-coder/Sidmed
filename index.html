@@ -658,7 +658,11 @@
 
     function confirmExitApp() {
       closeExitModal();
-      logoutReal();
+      if (window.navigator && window.navigator.app && window.navigator.app.exitApp) {
+        window.navigator.app.exitApp();
+      } else {
+        logoutReal();
+      }
     }
 
     function promptLogout() {
