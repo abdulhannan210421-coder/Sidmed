@@ -1,22 +1,30 @@
 <!DOCTYPE html>
-<html lang="id" class="h-full">
+<html lang="id" class="h-full bg-slate-100">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Sidmed Report - Portal Manajemen</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
           colors: {
-            brand: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              dark: '#0f172a',
+              charcoal: '#18181b'
+            }
           }
         }
       }
@@ -24,197 +32,243 @@
   </script>
 
   <style>
-    .glass-light {
-      background: rgba(255, 255, 255, 0.9);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(226, 232, 240, 0.8);
+    /* iOS Spring Animations & Blur */
+    .ios-glass {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.6);
     }
-    .animate-fadeIn { animation: fadeIn 0.2s ease-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+    .ios-card {
+      background: #ffffff;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+      transition: all 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .ios-card:active {
+      transform: scale(0.98);
+    }
+    .ios-modal-anim {
+      animation: iosModalIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes iosModalIn {
+      from { opacity: 0; transform: scale(0.92) translateY(20px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Hide scrollbars */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
 
-  <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+  <!-- TOAST CONTAINER -->
+  <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none w-11/12 max-w-sm"></div>
 
-  <!-- CUSTOM DIALOG MODAL -->
-  <div id="customDialogModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-    <div class="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl border border-slate-200 flex flex-col gap-4">
-      <div class="flex items-center gap-3">
-        <div class="p-2.5 rounded-xl bg-brand-50 text-brand-600">
-          <i data-lucide="info" class="w-5 h-5"></i>
-        </div>
-        <h3 id="dialogTitle" class="text-base font-bold text-slate-900">Konfirmasi</h3>
+  <!-- CUSTOM DIALOG MODAL (CONFIRMATION) -->
+  <div id="customDialogModal" class="fixed inset-0 z-[90] hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+    <div class="ios-card ios-modal-anim max-w-xs w-full rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
+      <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-zinc-900 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-3">
+        <i data-lucide="help-circle" class="w-6 h-6"></i>
       </div>
-      <p id="dialogMessage" class="text-xs text-slate-600 leading-relaxed"></p>
-      <div class="flex justify-end gap-2.5 mt-2">
-        <button id="dialogCancelBtn" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
-        <button id="dialogConfirmBtn" class="px-4 py-2 rounded-xl text-xs font-semibold bg-brand-600 text-white shadow-md shadow-brand-500/20">Ya, Lanjutkan</button>
+      <h3 id="dialogTitle" class="text-base font-bold text-slate-900">Konfirmasi</h3>
+      <p id="dialogMessage" class="text-xs text-slate-500 leading-relaxed mt-1 mb-5"></p>
+      <div class="flex w-full gap-2.5">
+        <button id="dialogCancelBtn" class="flex-1 py-3 rounded-2xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 transition">Batal</button>
+        <button id="dialogConfirmBtn" class="flex-1 py-3 rounded-2xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-zinc-900 text-white shadow-md shadow-emerald-600/20 transition">Ya, Lanjutkan</button>
       </div>
     </div>
   </div>
 
-  <!-- 1. LOGIN -->
-  <div id="loginSection" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50">
-    <div class="bg-white max-w-md w-full rounded-3xl p-8 shadow-xl border border-slate-200/80 animate-fadeIn">
+  <!-- CUSTOM IOS EXIT POPUP MODAL -->
+  <div id="customExitModal" class="fixed inset-0 z-[95] hidden items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md">
+    <div class="ios-card ios-modal-anim max-w-xs w-full rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center border border-white/60">
+      <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-700 to-black text-white flex items-center justify-center shadow-xl shadow-emerald-600/30 mb-3">
+        <i data-lucide="log-out" class="w-7 h-7"></i>
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-900">Keluar Aplikasi</h3>
+      <p class="text-xs text-slate-500 leading-relaxed mt-1 mb-6">Apakah Anda yakin ingin keluar dari sesi portal Sidmed Report?</p>
+      <div class="flex w-full gap-2.5">
+        <button onclick="closeExitModal()" class="flex-1 py-3 rounded-2xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition">Batal</button>
+        <button onclick="confirmExitApp()" class="flex-1 py-3 rounded-2xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-600/20 transition">Ya, Keluar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. LOGIN SECTION -->
+  <div id="loginSection" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-emerald-50 via-slate-100 to-slate-200">
+    <div class="ios-card ios-modal-anim max-w-md w-full rounded-3xl p-8 shadow-2xl border border-white/80">
       <div class="flex flex-col items-center mb-8 text-center">
-        <div class="p-3.5 bg-brand-600 rounded-2xl shadow-lg shadow-brand-500/30 mb-3 text-white">
+        <div class="w-16 h-16 bg-gradient-to-br from-emerald-500 via-emerald-700 to-zinc-900 rounded-3xl shadow-xl shadow-emerald-600/30 flex items-center justify-center mb-4 text-white">
           <i data-lucide="book-open-check" class="w-8 h-8"></i>
         </div>
         <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Sidmed Report</h1>
-        <p class="text-xs text-slate-500 mt-1">Portal Folder Edisi, Progress & Keuangan</p>
+        <p class="text-xs font-medium text-slate-500 mt-1">Portal Manajemen Edisi, Aset & Laporan</p>
       </div>
 
       <form onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase">Username</label>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Username</label>
           <div class="relative">
-            <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
-            <input type="text" id="loginUsername" required placeholder="Username"
-              class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-brand-500 font-medium">
+            <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="loginUsername" required placeholder="Masukkan username"
+              class="w-full bg-slate-50/80 border border-slate-200 text-slate-800 text-xs rounded-2xl pl-11 pr-4 py-3.5 outline-none focus:border-emerald-500 focus:bg-white transition font-medium">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1.5 uppercase">Password</label>
+          <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Kata Sandi</label>
           <div class="relative">
-            <i data-lucide="key-round" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <i data-lucide="key-round" class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
             <input type="password" id="loginPassword" required placeholder="••••••••"
-              class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-brand-500 font-medium">
+              class="w-full bg-slate-50/80 border border-slate-200 text-slate-800 text-xs rounded-2xl pl-11 pr-4 py-3.5 outline-none focus:border-emerald-500 focus:bg-white transition font-medium">
           </div>
         </div>
 
         <button type="submit" id="btnLoginSubmit"
-          class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-500/25 text-xs flex items-center justify-center gap-2">
-          <span>Masuk ke Akun</span>
+          class="w-full bg-gradient-to-r from-emerald-600 via-emerald-700 to-zinc-900 hover:opacity-95 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-600/25 text-xs flex items-center justify-center gap-2 transition active:scale-[0.98]">
+          <span>Masuk ke Portal</span>
           <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </button>
       </form>
     </div>
   </div>
 
-  <!-- 2. MAIN APP -->
+  <!-- 2. MAIN APP SECTION -->
   <div id="appSection" class="hidden flex-col min-h-screen">
     
-    <!-- HEADER -->
-    <header class="glass-light sticky top-0 z-40 border-b border-slate-200">
+    <!-- HEADER (IOS GLASS STYLE) -->
+    <header class="ios-glass sticky top-0 z-40 border-b border-slate-200/80">
       <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="p-2 bg-brand-600 rounded-xl text-white shadow-md">
+          <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-zinc-900 rounded-2xl text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
             <i data-lucide="book-open" class="w-5 h-5"></i>
           </div>
           <div>
-            <h1 class="text-sm font-bold text-slate-900 leading-none">Sidmed Report</h1>
-            <span class="text-[10px] text-slate-500 font-medium">Google Drive & Sheets Integration</span>
+            <h1 class="text-sm font-extrabold text-slate-900 leading-tight">Sidmed Report</h1>
+            <span class="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Cloud Portal
+            </span>
           </div>
         </div>
 
         <div class="flex items-center gap-3">
           <div class="text-right hidden sm:block">
             <p id="userDisplayName" class="text-xs font-bold text-slate-800"></p>
-            <span id="userRoleBadge" class="inline-block text-[10px] px-2 py-0.5 rounded-md font-bold bg-brand-50 text-brand-600 border border-brand-200 uppercase"></span>
+            <span id="userRoleBadge" class="inline-block text-[9px] px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800 uppercase border border-emerald-200"></span>
           </div>
-          <button onclick="logout()" class="p-2 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl border border-slate-200">
+          <button onclick="promptLogout()" class="p-2.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-2xl border border-slate-200 transition">
             <i data-lucide="log-out" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
     </header>
 
-    <!-- TABS DESKTOP -->
-    <div class="bg-white border-b border-slate-200 sticky top-16 z-30 hidden md:block">
-      <div class="max-w-7xl mx-auto px-4 flex space-x-1">
-        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn px-4 py-3 text-xs font-bold text-brand-600 border-b-2 border-brand-600 flex items-center gap-2">
+    <!-- DESKTOP TOP NAV TABS -->
+    <div class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-16 z-30 hidden md:block">
+      <div class="max-w-7xl mx-auto px-4 flex space-x-2">
+        <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn px-4 py-3.5 text-xs font-bold text-emerald-600 border-b-2 border-emerald-600 flex items-center gap-2 transition">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
         </button>
-        <button onclick="switchTab('majalah')" id="nav-majalah" class="nav-btn px-4 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2">
+        <button onclick="switchTab('majalah')" id="nav-majalah" class="nav-btn admin-only hidden px-4 py-3.5 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2 transition">
           <i data-lucide="folder-archive" class="w-4 h-4"></i> Arsip Edisi
         </button>
-        <button onclick="switchTab('branding')" id="nav-branding" class="nav-btn px-4 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2">
+        <button onclick="switchTab('branding')" id="nav-branding" class="nav-btn branding-or-admin hidden px-4 py-3.5 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2 transition">
           <i data-lucide="palette" class="w-4 h-4"></i> Aset Branding
         </button>
-        <button onclick="switchTab('progress')" id="nav-progress" class="nav-btn px-4 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2">
+        <button onclick="switchTab('progress')" id="nav-progress" class="nav-btn admin-only hidden px-4 py-3.5 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2 transition">
           <i data-lucide="check-square" class="w-4 h-4"></i> Progress Edisi
         </button>
-        <button onclick="switchTab('keuangan')" id="nav-keuangan" class="nav-btn px-4 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2">
+        <button onclick="switchTab('keuangan')" id="nav-keuangan" class="nav-btn admin-only hidden px-4 py-3.5 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2 transition">
           <i data-lucide="wallet" class="w-4 h-4"></i> Keuangan
         </button>
-        <button onclick="switchTab('users')" id="nav-users" class="nav-btn admin-only hidden px-4 py-3 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2">
-          <i data-lucide="users" class="w-4 h-4"></i> Kelola User
+        <button onclick="switchTab('users')" id="nav-users" class="nav-btn admin-only hidden px-4 py-3.5 text-xs font-semibold text-slate-500 border-b-2 border-transparent hover:text-slate-900 flex items-center gap-2 transition">
+          <i data-lucide="users" class="w-4 h-4"></i> Kelola User & Password
         </button>
       </div>
     </div>
 
-    <!-- MAIN BODY -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 pb-24 md:pb-8">
+    <!-- MAIN CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 pb-28 md:pb-8">
 
-      <!-- DASHBOARD -->
+      <!-- DASHBOARD (Visible to ALL roles) -->
       <section id="tab-content-dashboard" class="tab-page space-y-6 animate-fadeIn">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="ios-card p-5 rounded-3xl flex items-center justify-between">
             <div>
-              <p class="text-[11px] text-slate-500 font-bold uppercase">Folder Majalah</p>
-              <h3 id="dashStatMajalah" class="text-2xl font-extrabold text-slate-900 mt-1">0</h3>
+              <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Folder Majalah</p>
+              <h3 id="dashStatMajalah" class="text-2xl font-black text-slate-900 mt-1">0</h3>
             </div>
-            <div class="p-3 bg-brand-50 text-brand-600 rounded-xl"><i data-lucide="folder" class="w-6 h-6"></i></div>
+            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><i data-lucide="folder" class="w-6 h-6"></i></div>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="ios-card p-5 rounded-3xl flex items-center justify-between">
             <div>
-              <p class="text-[11px] text-slate-500 font-bold uppercase">Folder Branding</p>
-              <h3 id="dashStatBranding" class="text-2xl font-extrabold text-slate-900 mt-1">0</h3>
+              <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Folder Branding</p>
+              <h3 id="dashStatBranding" class="text-2xl font-black text-slate-900 mt-1">0</h3>
             </div>
-            <div class="p-3 bg-purple-50 text-purple-600 rounded-xl"><i data-lucide="palette" class="w-6 h-6"></i></div>
+            <div class="p-3 bg-zinc-100 text-zinc-900 rounded-2xl"><i data-lucide="palette" class="w-6 h-6"></i></div>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="ios-card p-5 rounded-3xl flex items-center justify-between">
             <div>
-              <p class="text-[11px] text-slate-500 font-bold uppercase">Progress Task</p>
-              <h3 id="dashStatProgress" class="text-2xl font-extrabold text-emerald-600 mt-1">0%</h3>
+              <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Progress Task</p>
+              <h3 id="dashStatProgress" class="text-2xl font-black text-emerald-600 mt-1">0%</h3>
             </div>
-            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i data-lucide="trending-up" class="w-6 h-6"></i></div>
+            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><i data-lucide="trending-up" class="w-6 h-6"></i></div>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="ios-card p-5 rounded-3xl flex items-center justify-between">
             <div>
-              <p class="text-[11px] text-slate-500 font-bold uppercase">Saldo Net</p>
-              <h3 id="dashStatSaldo" class="text-lg font-extrabold text-brand-600 mt-1">Rp 0</h3>
+              <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Saldo Net</p>
+              <h3 id="dashStatSaldo" class="text-base font-black text-slate-900 mt-1">Rp 0</h3>
             </div>
-            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><i data-lucide="wallet" class="w-6 h-6"></i></div>
+            <div class="p-3 bg-emerald-50 text-emerald-700 rounded-2xl"><i data-lucide="wallet" class="w-6 h-6"></i></div>
           </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
-            <h3 class="text-xs font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
-              <i data-lucide="bar-chart-3" class="w-4 h-4 text-brand-600"></i> Laporan Keuangan Realtime
+          <div class="lg:col-span-2 ios-card p-6 rounded-3xl">
+            <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-4 h-4 text-emerald-600"></i> Ringkasan Keuangan
             </h3>
             <div class="w-full h-64 relative"><canvas id="financeChart"></canvas></div>
           </div>
-          <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+
+          <div class="ios-card p-6 rounded-3xl flex flex-col justify-between">
             <div>
-              <h3 class="text-xs font-bold text-slate-800 uppercase mb-4 flex items-center gap-2">
-                <i data-lucide="shield-check" class="w-4 h-4 text-brand-600"></i> Status Sistem Cloud
-              </h3>
-              <p class="text-xs text-slate-600 leading-relaxed mb-4">Aplikasi terhubung langsung ke Google Drive & Sheets API. Dilengkapi caching Dual-Storage (LocalStorage + IndexedDB) agar loading instan.</p>
+              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-zinc-900 text-white flex items-center justify-center mb-3">
+                <i data-lucide="shield-check" class="w-5 h-5"></i>
+              </div>
+              <h3 class="text-sm font-extrabold text-slate-900 mb-1">Status Sistem Cloud</h3>
+              <p class="text-xs text-slate-500 leading-relaxed">Sistem terintegrasi secara langsung dengan Google Drive & Google Sheets API. Dilengkapi fitur dual-caching instan.</p>
             </div>
-            <div class="text-[11px] text-slate-500 border-t border-slate-100 pt-3 flex justify-between">
-              <span>Status Sistem:</span>
-              <span class="text-emerald-600 font-bold">Online & Synchronized</span>
+            <div class="text-[11px] text-slate-500 border-t border-slate-100 pt-4 flex justify-between items-center mt-4">
+              <span>Koneksi Server:</span>
+              <span class="text-emerald-600 font-extrabold flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Terhubung
+              </span>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ARSIP MAJALAH -->
+      <!-- ARSIP MAJALAH (Admin Only) -->
       <section id="tab-content-majalah" class="tab-page hidden space-y-6 animate-fadeIn">
         <div id="majalahFoldersView" class="space-y-4">
           <div class="flex flex-col sm:flex-row justify-between gap-4">
             <div class="relative flex-1 max-w-md">
-              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
               <input type="text" id="searchFolderMajalah" onkeyup="filterFolders('majalah')" placeholder="Cari folder edisi..."
-                class="w-full bg-white border border-slate-200 text-xs rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-brand-500 shadow-sm">
+                class="w-full bg-white border border-slate-200 text-xs rounded-2xl pl-11 pr-4 py-3 outline-none focus:border-emerald-500 shadow-sm">
             </div>
             <div class="admin-only hidden flex gap-2">
-              <button onclick="handleCreateFolder('majalah')" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md">
-                <i data-lucide="folder-plus" class="w-4 h-4"></i> Buat Folder Edisi Baru
+              <button onclick="handleCreateFolder('majalah')" class="bg-gradient-to-r from-emerald-600 to-zinc-900 hover:opacity-95 text-white px-5 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+                <i data-lucide="folder-plus" class="w-4 h-4"></i> Buat Folder Edisi
               </button>
             </div>
           </div>
@@ -222,22 +276,22 @@
         </div>
 
         <div id="majalahFilesView" class="hidden space-y-4">
-          <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm gap-3">
+          <div class="flex flex-wrap justify-between items-center ios-card p-4 rounded-3xl gap-3">
             <div class="flex items-center gap-3">
-              <button onclick="closeFolderView('majalah')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700">
+              <button onclick="closeFolderView('majalah')" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-700 transition">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
               </button>
               <div>
                 <h3 id="currentFolderNameMajalah" class="text-sm font-bold text-slate-900">Folder Edisi</h3>
-                <span class="text-[10px] text-slate-400">Dukungan upload file majalah/video besar</span>
+                <span class="text-[10px] text-slate-400">Upload file majalah & video besar</span>
               </div>
             </div>
             <div class="admin-only hidden flex flex-wrap gap-2">
-              <a id="btnOpenDriveAppMajalah" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <i data-lucide="external-link" class="w-4 h-4"></i> Buka di App Drive
+              <a id="btnOpenDriveAppMajalah" href="#" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="external-link" class="w-4 h-4"></i> Drive App
               </a>
-              <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <i data-lucide="upload" class="w-4 h-4"></i> Upload via Web (Direct % Chunk)
+              <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
+                <i data-lucide="upload" class="w-4 h-4"></i> Upload Berkas
               </button>
             </div>
           </div>
@@ -245,18 +299,18 @@
         </div>
       </section>
 
-      <!-- ASET BRANDING -->
+      <!-- ASET BRANDING (Branding & Admin Only) -->
       <section id="tab-content-branding" class="tab-page hidden space-y-6 animate-fadeIn">
         <div id="brandingFoldersView" class="space-y-4">
           <div class="flex flex-col sm:flex-row justify-between gap-4">
             <div class="relative flex-1 max-w-md">
-              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"></i>
               <input type="text" id="searchFolderBranding" onkeyup="filterFolders('branding')" placeholder="Cari folder branding..."
-                class="w-full bg-white border border-slate-200 text-xs rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-brand-500 shadow-sm">
+                class="w-full bg-white border border-slate-200 text-xs rounded-2xl pl-11 pr-4 py-3 outline-none focus:border-emerald-500 shadow-sm">
             </div>
             <div class="branding-or-admin hidden flex gap-2">
-              <button onclick="handleCreateFolder('branding')" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md">
-                <i data-lucide="folder-plus" class="w-4 h-4"></i> Buat Folder Branding Baru
+              <button onclick="handleCreateFolder('branding')" class="bg-gradient-to-r from-emerald-600 to-zinc-900 text-white px-5 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 transition">
+                <i data-lucide="folder-plus" class="w-4 h-4"></i> Buat Folder Branding
               </button>
             </div>
           </div>
@@ -264,22 +318,22 @@
         </div>
 
         <div id="brandingFilesView" class="hidden space-y-4">
-          <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm gap-3">
+          <div class="flex flex-wrap justify-between items-center ios-card p-4 rounded-3xl gap-3">
             <div class="flex items-center gap-3">
-              <button onclick="closeFolderView('branding')" class="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700">
+              <button onclick="closeFolderView('branding')" class="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-2xl text-slate-700 transition">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i>
               </button>
               <div>
                 <h3 id="currentFolderNameBranding" class="text-sm font-bold text-slate-900">Folder Branding</h3>
-                <span class="text-[10px] text-slate-400">Dukungan upload file aset besar</span>
+                <span class="text-[10px] text-slate-400">Kelola aset branding</span>
               </div>
             </div>
             <div class="branding-or-admin hidden flex flex-wrap gap-2">
-              <a id="btnOpenDriveAppBranding" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <i data-lucide="external-link" class="w-4 h-4"></i> Buka di App Drive
+              <a id="btnOpenDriveAppBranding" href="#" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="external-link" class="w-4 h-4"></i> Drive App
               </a>
-              <button onclick="openUploadModalToCurrentFolder()" class="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
-                <i data-lucide="upload" class="w-4 h-4"></i> Upload via Web (Direct % Chunk)
+              <button onclick="openUploadModalToCurrentFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-600/20 transition">
+                <i data-lucide="upload" class="w-4 h-4"></i> Upload Berkas
               </button>
             </div>
           </div>
@@ -287,27 +341,27 @@
         </div>
       </section>
 
-      <!-- PROGRESS EDISI -->
+      <!-- PROGRESS EDISI (Admin Only) -->
       <section id="tab-content-progress" class="tab-page hidden space-y-6 animate-fadeIn">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+        <div class="ios-card p-6 rounded-3xl space-y-6">
           <div class="flex justify-between items-center">
             <div>
-              <h2 class="text-sm font-bold text-slate-900">Monitoring Progress Jobdesk Edisi Aktif</h2>
-              <p class="text-xs text-slate-500">Centang atau hapus tugas yang relevan</p>
+              <h2 class="text-sm font-bold text-slate-900">Monitoring Progress Jobdesk Edisi</h2>
+              <p class="text-xs text-slate-500">Daftar tugas pengerjaan edisi aktif</p>
             </div>
-            <span id="progressPercentBadge" class="text-xs font-bold px-3 py-1 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">0% Selesai</span>
+            <span id="progressPercentBadge" class="text-xs font-extrabold px-3 py-1 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200">0% Selesai</span>
           </div>
 
-          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden p-0.5 border border-slate-200">
-            <div id="progressBarInner" class="bg-brand-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden p-0.5 border border-slate-200">
+            <div id="progressBarInner" class="bg-gradient-to-r from-emerald-500 to-zinc-900 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
           </div>
 
           <form id="addJobdeskForm" onsubmit="handleAddJobdesk(event)" class="admin-only hidden grid grid-cols-1 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100">
-            <input type="text" id="inputEdisi" required placeholder="Edisi (contoh: 12)"
-              class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
-            <input type="text" id="inputJobdesk" required placeholder="Nama Jobdesk / Tugas"
-              class="sm:col-span-2 bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
-            <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl py-2.5 transition">
+            <input type="text" id="inputEdisi" required placeholder="Edisi (Cth: 12)"
+              class="bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <input type="text" id="inputJobdesk" required placeholder="Nama Tugas / Jobdesk"
+              class="sm:col-span-2 bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl py-3 transition shadow-md shadow-emerald-600/20">
               + Tambah Task
             </button>
           </form>
@@ -316,55 +370,55 @@
         </div>
       </section>
 
-      <!-- KEUANGAN -->
+      <!-- KEUANGAN (Admin Only) -->
       <section id="tab-content-keuangan" class="tab-page hidden space-y-6 animate-fadeIn">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 border-l-4 border-l-emerald-500 shadow-sm">
-            <p class="text-[11px] text-slate-500 font-bold uppercase">Total Pemasukan</p>
-            <h3 id="finStatIn" class="text-xl font-extrabold text-emerald-600 mt-1">Rp 0</h3>
+          <div class="ios-card p-5 rounded-3xl border-l-4 border-l-emerald-500">
+            <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Total Pemasukan</p>
+            <h3 id="finStatIn" class="text-xl font-black text-emerald-600 mt-1">Rp 0</h3>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 border-l-4 border-l-rose-500 shadow-sm">
-            <p class="text-[11px] text-slate-500 font-bold uppercase">Total Pengeluaran</p>
-            <h3 id="finStatOut" class="text-xl font-extrabold text-rose-600 mt-1">Rp 0</h3>
+          <div class="ios-card p-5 rounded-3xl border-l-4 border-l-rose-500">
+            <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Total Pengeluaran</p>
+            <h3 id="finStatOut" class="text-xl font-black text-rose-600 mt-1">Rp 0</h3>
           </div>
-          <div class="bg-white p-5 rounded-2xl border border-slate-200/80 border-l-4 border-l-brand-600 shadow-sm">
-            <p class="text-[11px] text-slate-500 font-bold uppercase">Saldo Net</p>
-            <h3 id="finStatNet" class="text-xl font-extrabold text-brand-600 mt-1">Rp 0</h3>
+          <div class="ios-card p-5 rounded-3xl border-l-4 border-l-zinc-900">
+            <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Saldo Net</p>
+            <h3 id="finStatNet" class="text-xl font-black text-slate-900 mt-1">Rp 0</h3>
           </div>
         </div>
 
-        <div class="admin-only hidden bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-          <h3 class="text-xs font-bold text-slate-800 uppercase">Catat Transaksi Keuangan</h3>
+        <div class="admin-only hidden ios-card p-5 rounded-3xl space-y-3">
+          <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Catat Transaksi Keuangan</h3>
           <form onsubmit="handleAddKeuangan(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3">
             <div class="relative">
               <input type="hidden" id="finJenis" value="Pemasukan">
               <button type="button" id="finJenisBtn" onclick="toggleDropdown('finJenisMenu')"
-                class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 flex justify-between items-center font-bold">
+                class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-2xl px-4 py-3 flex justify-between items-center font-bold">
                 <span id="finJenisLabel">Pemasukan</span>
                 <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
               </button>
-              <div id="finJenisMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 text-xs">
-                <div onclick="selectDropdownOption('finJenis', 'Pemasukan', 'finJenisLabel', 'finJenisMenu')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-emerald-600">Pemasukan</div>
-                <div onclick="selectDropdownOption('finJenis', 'Pengeluaran', 'finJenisLabel', 'finJenisMenu')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-rose-600">Pengeluaran</div>
+              <div id="finJenisMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 py-1 text-xs">
+                <div onclick="selectDropdownOption('finJenis', 'Pemasukan', 'finJenisLabel', 'finJenisMenu')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold text-emerald-600">Pemasukan</div>
+                <div onclick="selectDropdownOption('finJenis', 'Pengeluaran', 'finJenisLabel', 'finJenisMenu')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold text-rose-600">Pengeluaran</div>
               </div>
             </div>
 
-            <input type="text" id="finKategori" required placeholder="Kategori (Iklan/Cetak)" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-500">
-            <input type="number" id="finNominal" required placeholder="Nominal (Rp)" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-500">
-            <input type="text" id="finKet" placeholder="Keterangan opsional" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-brand-500">
-            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl py-2.5 transition">Simpan Transaksi</button>
+            <input type="text" id="finKategori" required placeholder="Kategori" class="bg-slate-50 border border-slate-200 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <input type="number" id="finNominal" required placeholder="Nominal (Rp)" class="bg-slate-50 border border-slate-200 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <input type="text" id="finKet" placeholder="Keterangan opsional" class="bg-slate-50 border border-slate-200 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-2xl py-3 transition shadow-md shadow-emerald-600/20">Simpan Transaksi</button>
           </form>
         </div>
 
-        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="ios-card rounded-3xl overflow-hidden">
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
               <tr>
-                <th class="p-3.5">Tanggal</th>
-                <th class="p-3.5">Jenis</th>
-                <th class="p-3.5">Kategori</th>
-                <th class="p-3.5">Keterangan</th>
-                <th class="p-3.5 text-right">Nominal</th>
+                <th class="p-4">Tanggal</th>
+                <th class="p-4">Jenis</th>
+                <th class="p-4">Kategori</th>
+                <th class="p-4">Keterangan</th>
+                <th class="p-4 text-right">Nominal</th>
               </tr>
             </thead>
             <tbody id="tableKeuanganBody" class="divide-y divide-slate-100 text-slate-700"></tbody>
@@ -372,115 +426,120 @@
         </div>
       </section>
 
-      <!-- KELOLA USER -->
+      <!-- KELOLA USER & PASSWORD (Admin Only) -->
       <section id="tab-content-users" class="tab-page hidden space-y-6 animate-fadeIn">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
-          <div class="flex justify-between items-center">
-            <div>
-              <h2 class="text-sm font-bold text-slate-900">Manajemen Pengguna (Google Sheets)</h2>
-              <p class="text-xs text-slate-500">Atur akun, ubah password, atau hapus pengguna terdaftar</p>
-            </div>
+        <div class="ios-card p-6 rounded-3xl space-y-6">
+          <div>
+            <h2 class="text-sm font-extrabold text-slate-900">Manajemen Pengguna & Kata Sandi</h2>
+            <p class="text-xs text-slate-500">Admin utama dapat menambahkan user baru atau mengubah kata sandi pengguna terdaftar</p>
           </div>
 
           <form onsubmit="handleAddUser(event)" class="grid grid-cols-1 sm:grid-cols-5 gap-3 pb-4 border-b border-slate-100">
-            <input type="text" id="newUsername" required placeholder="Username" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
-            <input type="password" id="newPassword" required placeholder="Password" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
-            <input type="text" id="newName" placeholder="Nama Lengkap" class="bg-slate-50 border border-slate-200 text-xs rounded-xl px-3.5 py-2.5 outline-none focus:border-brand-500">
+            <input type="text" id="newUsername" required placeholder="Username" class="bg-slate-50 border border-slate-200 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <input type="text" id="newPassword" required placeholder="Password / Kata Sandi" class="bg-slate-50 border border-slate-200 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
+            <input type="text" id="newName" placeholder="Nama Lengkap" class="bg-slate-50 border border-slate-200 text-xs rounded-2xl px-4 py-3 outline-none focus:border-emerald-500">
             
             <div class="relative">
               <input type="hidden" id="newRole" value="admin">
               <button type="button" id="newRoleBtn" onclick="toggleDropdown('newRoleMenu')"
-                class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 flex justify-between items-center font-bold">
-                <span id="newRoleLabel">Admin Pusat</span>
+                class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-2xl px-4 py-3 flex justify-between items-center font-bold">
+                <span id="newRoleLabel">Admin Utama</span>
                 <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
               </button>
-              <div id="newRoleMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 text-xs">
-                <div onclick="selectDropdownOption('newRole', 'admin', 'newRoleLabel', 'newRoleMenu', 'Admin Pusat')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-slate-800">Admin Pusat</div>
-                <div onclick="selectDropdownOption('newRole', 'branding', 'newRoleLabel', 'newRoleMenu', 'Tim Branding')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-slate-800">Tim Branding</div>
-                <div onclick="selectDropdownOption('newRole', 'user', 'newRoleLabel', 'newRoleMenu', 'User / Tim Lain')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-slate-800">User / Tim Lain</div>
+              <div id="newRoleMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 py-1 text-xs">
+                <div onclick="selectDropdownOption('newRole', 'admin', 'newRoleLabel', 'newRoleMenu', 'Admin Utama')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold">Admin Utama</div>
+                <div onclick="selectDropdownOption('newRole', 'branding', 'newRoleLabel', 'newRoleMenu', 'Tim Branding')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold">Tim Branding</div>
+                <div onclick="selectDropdownOption('newRole', 'user', 'newRoleLabel', 'newRoleMenu', 'User / Tim Lain')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold">User / Tim Lain</div>
               </div>
             </div>
 
-            <button type="submit" id="btnAddUserSubmit" class="bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl py-2.5 transition">+ Tambah User</button>
+            <button type="submit" id="btnAddUserSubmit" class="bg-gradient-to-r from-emerald-600 to-zinc-900 text-white text-xs font-bold rounded-2xl py-3 transition shadow-md shadow-emerald-600/20">+ Tambah User</button>
           </form>
 
-          <table class="w-full text-left text-xs">
-            <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
-              <tr>
-                <th class="p-3">Username / Nama</th>
-                <th class="p-3">Role Hak Akses</th>
-                <th class="p-3 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="listUsersBody" class="divide-y divide-slate-100 text-slate-700"></tbody>
-          </table>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="p-4">Username / Nama</th>
+                  <th class="p-4">Kata Sandi</th>
+                  <th class="p-4">Role Hak Akses</th>
+                  <th class="p-4 text-right">Aksi Manajemen</th>
+                </tr>
+              </thead>
+              <tbody id="listUsersBody" class="divide-y divide-slate-100 text-slate-700"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
     </main>
 
-    <!-- MOBILE BOTTOM NAV -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 glass-light border-t border-slate-200 z-40 px-2 py-1.5 flex justify-around items-center">
-      <button onclick="switchTab('dashboard')" id="mob-dashboard" class="mob-btn flex flex-col items-center gap-1 p-2 text-brand-600">
+    <!-- MOBILE BOTTOM NAVIGATION BAR (IOS STYLE) -->
+    <nav id="mobileBottomNav" class="md:hidden fixed bottom-0 left-0 right-0 ios-glass border-t border-slate-200/80 z-40 px-3 py-2 flex justify-around items-center">
+      <button onclick="switchTab('dashboard')" id="mob-dashboard" class="mob-btn flex flex-col items-center gap-1 p-1 text-emerald-600">
         <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
         <span class="text-[9px] font-bold">Home</span>
       </button>
-      <button onclick="switchTab('majalah')" id="mob-majalah" class="mob-btn flex flex-col items-center gap-1 p-2 text-slate-400">
+      <button onclick="switchTab('majalah')" id="mob-majalah" class="mob-btn admin-only hidden flex flex-col items-center gap-1 p-1 text-slate-400">
         <i data-lucide="folder-archive" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold">Arsip</span>
+        <span class="text-[9px] font-bold">Arsip</span>
       </button>
-      <button onclick="switchTab('branding')" id="mob-branding" class="mob-btn flex flex-col items-center gap-1 p-2 text-slate-400">
+      <button onclick="switchTab('branding')" id="mob-branding" class="mob-btn branding-or-admin hidden flex flex-col items-center gap-1 p-1 text-slate-400">
         <i data-lucide="palette" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold">Branding</span>
+        <span class="text-[9px] font-bold">Branding</span>
       </button>
-      <button onclick="switchTab('progress')" id="mob-progress" class="mob-btn flex flex-col items-center gap-1 p-2 text-slate-400">
+      <button onclick="switchTab('progress')" id="mob-progress" class="mob-btn admin-only hidden flex flex-col items-center gap-1 p-1 text-slate-400">
         <i data-lucide="check-square" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold">Progress</span>
+        <span class="text-[9px] font-bold">Progress</span>
       </button>
-      <button onclick="switchTab('keuangan')" id="mob-keuangan" class="mob-btn flex flex-col items-center gap-1 p-2 text-slate-400">
+      <button onclick="switchTab('keuangan')" id="mob-keuangan" class="mob-btn admin-only hidden flex flex-col items-center gap-1 p-1 text-slate-400">
         <i data-lucide="wallet" class="w-5 h-5"></i>
-        <span class="text-[9px] font-semibold">Keuangan</span>
+        <span class="text-[9px] font-bold">Keuangan</span>
+      </button>
+      <button onclick="switchTab('users')" id="mob-users" class="mob-btn admin-only hidden flex flex-col items-center gap-1 p-1 text-slate-400">
+        <i data-lucide="users" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold">User</span>
       </button>
     </nav>
   </div>
 
-  <!-- UPLOAD MODAL DENGAN PROGRESS BAR -->
-  <div id="uploadModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-    <div class="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-200">
+  <!-- UPLOAD MODAL -->
+  <div id="uploadModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+    <div class="ios-card ios-modal-anim max-w-md w-full rounded-3xl p-6 shadow-2xl">
       <div class="flex justify-between items-center mb-4">
-        <h3 id="uploadModalTitle" class="text-sm font-bold text-slate-900">Upload File via Web</h3>
+        <h3 id="uploadModalTitle" class="text-sm font-bold text-slate-900">Upload Berkas ke Cloud</h3>
         <button onclick="closeUploadModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <form onsubmit="handleUploadSubmit(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Pilih File Majalah / Aset</label>
-          <input type="file" id="uploadFileInput" required class="w-full text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+          <label class="block text-xs font-bold text-slate-600 mb-1.5">Pilih Berkas</label>
+          <input type="file" id="uploadFileInput" required class="w-full text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-2xl p-3">
         </div>
 
-        <div id="uploadProgressBox" class="hidden space-y-1.5 pt-1">
+        <div id="uploadProgressBox" class="hidden space-y-2 pt-1">
           <div class="flex justify-between text-[11px] font-bold text-slate-600">
             <span id="uploadStatusLabel">Mengunggah...</span>
-            <span id="uploadPercentText" class="text-brand-600">0%</span>
+            <span id="uploadPercentText" class="text-emerald-600">0%</span>
           </div>
-          <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200">
-            <div id="uploadProgressBar" class="bg-brand-600 h-full w-0 transition-all duration-200 rounded-full"></div>
+          <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+            <div id="uploadProgressBar" class="bg-gradient-to-r from-emerald-500 to-zinc-900 h-full w-0 transition-all duration-200 rounded-full"></div>
           </div>
         </div>
 
         <div class="flex justify-end gap-2 pt-2">
-          <button type="button" onclick="closeUploadModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
-          <button type="submit" id="btnSubmitUpload" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md">Upload Sekarang</button>
+          <button type="button" onclick="closeUploadModal()" class="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+          <button type="submit" id="btnSubmitUpload" class="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-zinc-900 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20">Upload Sekarang</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL EDIT USER -->
-  <div id="editUserModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-    <div class="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-200">
+  <!-- EDIT USER / RESET PASSWORD MODAL -->
+  <div id="editUserModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+    <div class="ios-card ios-modal-anim max-w-md w-full rounded-3xl p-6 shadow-2xl">
       <div class="flex justify-between items-center mb-4">
-        <h3 class="text-sm font-bold text-slate-900">Edit Data Pengguna</h3>
+        <h3 class="text-sm font-extrabold text-slate-900">Atur Pengguna & Kata Sandi</h3>
         <button onclick="closeEditUserModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
@@ -488,40 +547,40 @@
         <input type="hidden" id="editRowId">
         
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Username</label>
-          <input type="text" id="editUsername" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-brand-500">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Username</label>
+          <input type="text" id="editUsername" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-2xl p-3 outline-none focus:border-emerald-500">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Password Baru</label>
-          <input type="text" id="editPassword" required class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-brand-500">
+          <label class="block text-xs font-bold text-emerald-700 mb-1">Kata Sandi / Password Baru</label>
+          <input type="text" id="editPassword" required class="w-full bg-slate-50 border border-emerald-300 text-xs font-bold rounded-2xl p-3 outline-none focus:border-emerald-500">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
-          <input type="text" id="editName" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-2.5 outline-none focus:border-brand-500">
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nama Lengkap</label>
+          <input type="text" id="editName" class="w-full bg-slate-50 border border-slate-200 text-xs rounded-2xl p-3 outline-none focus:border-emerald-500">
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Role Hak Akses</label>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Role Hak Akses</label>
           <div class="relative">
             <input type="hidden" id="editRole" value="user">
             <button type="button" id="editRoleBtn" onclick="toggleDropdown('editRoleMenu')"
-              class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-xl px-3 py-2.5 flex justify-between items-center font-bold">
+              class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs rounded-2xl p-3 flex justify-between items-center font-bold">
               <span id="editRoleLabel">User / Tim Lain</span>
               <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
             </button>
-            <div id="editRoleMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-20 py-1 text-xs">
-              <div onclick="selectDropdownOption('editRole', 'admin', 'editRoleLabel', 'editRoleMenu', 'Admin Pusat')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-slate-800">Admin Pusat</div>
-              <div onclick="selectDropdownOption('editRole', 'branding', 'editRoleLabel', 'editRoleMenu', 'Tim Branding')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-slate-800">Tim Branding</div>
-              <div onclick="selectDropdownOption('editRole', 'user', 'editRoleLabel', 'editRoleMenu', 'User / Tim Lain')" class="px-3 py-2 hover:bg-slate-100 cursor-pointer font-bold text-slate-800">User / Tim Lain</div>
+            <div id="editRoleMenu" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 py-1 text-xs">
+              <div onclick="selectDropdownOption('editRole', 'admin', 'editRoleLabel', 'editRoleMenu', 'Admin Utama')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold">Admin Utama</div>
+              <div onclick="selectDropdownOption('editRole', 'branding', 'editRoleLabel', 'editRoleMenu', 'Tim Branding')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold">Tim Branding</div>
+              <div onclick="selectDropdownOption('editRole', 'user', 'editRoleLabel', 'editRoleMenu', 'User / Tim Lain')" class="px-4 py-2.5 hover:bg-slate-100 cursor-pointer font-bold">User / Tim Lain</div>
             </div>
           </div>
         </div>
 
         <div class="flex justify-end gap-2 pt-3">
-          <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Batal</button>
-          <button type="submit" id="btnSubmitEditUser" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md">Simpan Perubahan</button>
+          <button type="button" onclick="closeEditUserModal()" class="px-4 py-2.5 rounded-2xl text-xs font-bold text-slate-600 hover:bg-slate-100">Batal</button>
+          <button type="submit" id="btnSubmitEditUser" class="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-zinc-900 text-white rounded-2xl text-xs font-bold shadow-md shadow-emerald-600/20">Simpan Perubahan</button>
         </div>
       </form>
     </div>
@@ -531,6 +590,7 @@
     const API_URL = "https://script.google.com/macros/s/AKfycbxtv9fvgJ9hhgdT1PE5C1oxftAhlJ7N5xovgLug1AlimagGDsYQDPnbQj4VTjatsS9L/exec";
 
     let currentUser = null;
+    let currentActiveTab = 'dashboard';
     let financeChartInstance = null;
     let cacheFoldersMajalah = [];
     let cacheFoldersBranding = [];
@@ -539,7 +599,74 @@
     let activeFolderId = null;
 
     // ==========================================
-    // INDEXEDDB MANAGER (DUAL-STORAGE CACHING)
+    // LOGIKA TOMBOL KEMBALI (BACK BUTTON API)
+    // ==========================================
+    window.addEventListener('popstate', function (event) {
+      // 1. Jika modal upload / edit user terbuka, tutup dulu
+      if (!document.getElementById('uploadModal').classList.contains('hidden')) {
+        closeUploadModal();
+        pushHistoryState();
+        return;
+      }
+      if (!document.getElementById('editUserModal').classList.contains('hidden')) {
+        closeEditUserModal();
+        pushHistoryState();
+        return;
+      }
+
+      // 2. Jika sedang di dalam Folder View (Detail File), kembalikan ke Folder Grid
+      if (activeFolderId) {
+        if (!document.getElementById('majalahFilesView').classList.contains('hidden')) {
+          closeFolderView('majalah');
+          pushHistoryState();
+          return;
+        }
+        if (!document.getElementById('brandingFilesView').classList.contains('hidden')) {
+          closeFolderView('branding');
+          pushHistoryState();
+          return;
+        }
+      }
+
+      // 3. Jika sedang bukan di tab Dashboard, alihkan dulu ke Dashboard
+      if (currentActiveTab !== 'dashboard') {
+        switchTab('dashboard');
+        pushHistoryState();
+        return;
+      }
+
+      // 4. Jika sudah di Dashboard, tampilkan Custom Exit Modal
+      showExitModal();
+      pushHistoryState();
+    });
+
+    function pushHistoryState() {
+      history.pushState({ page: 'app' }, '', location.href);
+    }
+
+    function showExitModal() {
+      const modal = document.getElementById('customExitModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeExitModal() {
+      const modal = document.getElementById('customExitModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function confirmExitApp() {
+      closeExitModal();
+      logoutReal();
+    }
+
+    function promptLogout() {
+      showExitModal();
+    }
+
+    // ==========================================
+    // INDEXEDDB CACHING SYSTEM
     // ==========================================
     const DB_NAME = 'SidmedCloudDB';
     const DB_VERSION = 1;
@@ -564,9 +691,7 @@
         const db = await openDB();
         const tx = db.transaction(STORE_NAME, 'readwrite');
         tx.objectStore(STORE_NAME).put(data, key);
-      } catch (e) {
-        console.warn('IndexedDB Write Error:', e);
-      }
+      } catch (e) {}
     }
 
     async function getCacheDB(key) {
@@ -585,6 +710,7 @@
 
     window.onload = () => {
       lucide.createIcons();
+      pushHistoryState();
       checkSession();
     };
 
@@ -601,8 +727,12 @@
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
-      const colors = { success: 'bg-emerald-600 text-white', error: 'bg-rose-600 text-white', info: 'bg-brand-600 text-white' };
-      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl ${colors[type] || colors.info} shadow-xl animate-fadeIn text-xs font-bold`;
+      const colors = { 
+        success: 'bg-emerald-600 text-white', 
+        error: 'bg-rose-600 text-white', 
+        info: 'bg-zinc-900 text-white' 
+      };
+      toast.className = `pointer-events-auto flex items-center justify-between gap-2.5 px-4 py-3 rounded-2xl ${colors[type] || colors.info} shadow-2xl animate-fadeIn text-xs font-bold border border-white/20`;
       toast.innerHTML = `<span>${message}</span>`;
       container.appendChild(toast);
       setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3500);
@@ -643,35 +773,39 @@
             showToast(`Selamat datang, ${user.name || user.username}!`, 'success');
             renderSessionUI();
           } else {
-            showToast("Username/Password salah!", 'error');
+            showToast("Username / Kata Sandi Salah!", 'error');
           }
         }
       } catch (err) {
-        showToast("Gagal terhubung ke API", 'error');
+        showToast("Gagal terhubung ke API server", 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<span>Masuk ke Akun</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        btn.innerHTML = `<span>Masuk ke Portal</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
         lucide.createIcons();
       }
     }
 
     function checkSession() {
       const saved = localStorage.getItem("app_session");
-      if (saved) { currentUser = JSON.parse(saved); renderSessionUI(); }
-      else { document.getElementById('loginSection').classList.remove('hidden'); document.getElementById('appSection').classList.add('hidden'); }
+      if (saved) { 
+        currentUser = JSON.parse(saved); 
+        renderSessionUI(); 
+      } else { 
+        document.getElementById('loginSection').classList.remove('hidden'); 
+        document.getElementById('appSection').classList.add('hidden'); 
+      }
     }
 
-    function logout() {
-      showDialog("Logout", "Apakah Anda yakin ingin keluar?", true).then((yes) => {
-        if (yes) {
-          localStorage.removeItem("app_session");
-          currentUser = null;
-          document.getElementById('appSection').classList.add('hidden');
-          document.getElementById('loginSection').classList.remove('hidden');
-        }
-      });
+    function logoutReal() {
+      localStorage.removeItem("app_session");
+      currentUser = null;
+      document.getElementById('appSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
     }
 
+    // ==========================================
+    // RENDER UI & HAK AKSES PERAN (ROLES)
+    // ==========================================
     function renderSessionUI() {
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('appSection').classList.remove('hidden');
@@ -680,36 +814,48 @@
       document.getElementById('userDisplayName').innerText = currentUser.name || currentUser.username;
       document.getElementById('userRoleBadge').innerText = currentUser.role;
 
-      document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', currentUser.role !== 'admin'));
-      document.querySelectorAll('.branding-or-admin').forEach(el => el.classList.toggle('hidden', !(currentUser.role === 'admin' || currentUser.role === 'branding')));
+      const isAdmin = (currentUser.role === 'admin');
+      const isBranding = (currentUser.role === 'branding');
+
+      // Sembunyikan atau tampilkan elemen sesuai aturan peran
+      document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
+      document.querySelectorAll('.branding-or-admin').forEach(el => el.classList.toggle('hidden', !(isAdmin || isBranding)));
+
+      // Pindahkan langsung ke Dashboard
+      switchTab('dashboard');
 
       initChart();
       loadFolders('majalah');
       loadFolders('branding');
       fetchProgress();
       fetchKeuangan();
-      fetchUsersFromSheets();
+      if (isAdmin) fetchUsersFromSheets();
     }
 
     function switchTab(tabKey) {
+      // Batasi hak akses jika dipanggil lewat fungsi
+      if (currentUser.role === 'user' && tabKey !== 'dashboard') return;
+      if (currentUser.role === 'branding' && tabKey !== 'dashboard' && tabKey !== 'branding') return;
+
+      currentActiveTab = tabKey;
+
       document.querySelectorAll('.tab-page').forEach(p => p.classList.add('hidden'));
       document.getElementById(`tab-content-${tabKey}`).classList.remove('hidden');
 
       document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('text-brand-600', 'border-brand-600', 'font-bold');
+        btn.classList.remove('text-emerald-600', 'border-emerald-600', 'font-bold');
         btn.classList.add('text-slate-500', 'border-transparent', 'font-semibold');
       });
       const activeNav = document.getElementById(`nav-${tabKey}`);
-      if(activeNav) activeNav.classList.add('text-brand-600', 'border-brand-600', 'font-bold');
+      if(activeNav) activeNav.classList.add('text-emerald-600', 'border-emerald-600', 'font-bold');
 
-      document.querySelectorAll('.mob-btn').forEach(btn => btn.classList.replace('text-brand-600', 'text-slate-400'));
+      document.querySelectorAll('.mob-btn').forEach(btn => btn.classList.replace('text-emerald-600', 'text-slate-400'));
       const activeMob = document.getElementById(`mob-${tabKey}`);
-      if(activeMob) activeMob.classList.replace('text-slate-400', 'text-brand-600');
+      if(activeMob) activeMob.classList.replace('text-slate-400', 'text-emerald-600');
     }
 
-    async function loadFolders(type, silent = false) {
+    async function loadFolders(type) {
       const cacheKey = `folders_${type}`;
-      
       const cached = await getCacheDB(cacheKey);
       if (cached) {
         if (type === 'majalah') {
@@ -744,24 +890,24 @@
     function renderFolders(folders, targetId, type) {
       const container = document.getElementById(targetId);
       if(!folders || folders.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada folder ${type}. Klik 'Buat Folder Baru' di atas.</p>`;
+        container.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full py-4">Belum ada folder ${type}.</p>`;
         return;
       }
 
       const canDelete = (type === 'majalah' && currentUser.role === 'admin') || (type === 'branding' && (currentUser.role === 'admin' || currentUser.role === 'branding'));
 
       container.innerHTML = folders.map(f => `
-        <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition flex items-center justify-between">
+        <div class="ios-card p-4 rounded-3xl flex items-center justify-between">
           <div onclick="openFolderDetail('${f.id}', '${type}')" class="flex items-center gap-3 cursor-pointer flex-1 mr-2">
-            <div class="p-3 ${type === 'majalah' ? 'bg-brand-50 text-brand-600' : 'bg-purple-50 text-purple-600'} rounded-xl">
+            <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
               <i data-lucide="folder" class="w-6 h-6"></i>
             </div>
             <div>
               <h4 class="font-bold text-xs text-slate-800">${f.name}</h4>
-              <p class="text-[10px] text-slate-400">Dibuat: ${new Date(f.created).toLocaleDateString('id-ID')}</p>
+              <p class="text-[10px] text-slate-400 mt-0.5">Dibuat: ${new Date(f.created).toLocaleDateString('id-ID')}</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1">
             ${canDelete ? `
               <button onclick="handleDeleteFolder('${f.id}', '${f.name}', '${type}')" class="p-2 text-slate-400 hover:text-rose-600 transition" title="Hapus Folder">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -794,7 +940,7 @@
         const json = await res.json();
         if (json.status === 'success') {
           showToast("Folder berhasil dibuat!", 'success');
-          loadFolders(type, true);
+          loadFolders(type);
         } else {
           showToast("Gagal membuat folder: " + json.message, 'error');
         }
@@ -804,7 +950,7 @@
     }
 
     async function handleDeleteFolder(folderId, folderName, type) {
-      const confirm = await showDialog("Hapus Folder", `Hapus folder '${folderName}' dan seluruh isinya dari Drive?`, true);
+      const confirm = await showDialog("Hapus Folder", `Hapus folder '${folderName}' dan seluruh isinya dari Cloud Drive?`, true);
       if (!confirm) return;
 
       showToast("Menghapus folder...", 'info');
@@ -816,7 +962,7 @@
         const json = await res.json();
         if (json.status === 'success') {
           showToast("Folder berhasil dihapus!", 'success');
-          loadFolders(type, true);
+          loadFolders(type);
         } else {
           showToast("Gagal hapus folder: " + json.message, 'error');
         }
@@ -827,6 +973,8 @@
 
     async function openFolderDetail(folderId, type) {
       activeFolderId = folderId;
+      pushHistoryState();
+
       const folderList = (type === 'majalah') ? cacheFoldersMajalah : cacheFoldersBranding;
       const targetFolder = folderList.find(f => f.id === folderId);
       const folderName = targetFolder ? targetFolder.name : "Folder";
@@ -849,7 +997,7 @@
       if (cachedFiles && cachedFiles.length > 0) {
         renderFilesList(cachedFiles, targetGrid);
       } else {
-        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
+        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full py-4">Belum ada file di folder ini.</p>`;
       }
 
       try {
@@ -864,7 +1012,7 @@
 
     function renderFilesList(files, targetGrid) {
       if (!files || files.length === 0) {
-        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full">Belum ada file di folder ini.</p>`;
+        targetGrid.innerHTML = `<p class="text-slate-400 text-xs italic col-span-full py-4">Belum ada file di folder ini.</p>`;
         return;
       }
       
@@ -876,16 +1024,16 @@
         const isOfficeDoc = f.name.match(/\.(docx?|xlsx?|pptx?|pdf|txt)$/i);
         
         return `
-          <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-3">
+          <div class="ios-card p-4 rounded-3xl flex flex-col justify-between space-y-3">
             <div>
               ${isImage ? `
-                <div class="w-full h-36 bg-slate-100 rounded-xl overflow-hidden mb-3 border border-slate-200/60 flex items-center justify-center">
+                <div class="w-full h-36 bg-slate-100 rounded-2xl overflow-hidden mb-3 border border-slate-200/60 flex items-center justify-center">
                   <img src="https://lh3.googleusercontent.com/d/${f.id}" alt="${f.name}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/300x200?text=Gambar+Drive';">
                 </div>
               ` : ''}
               <div class="flex items-center justify-between gap-2 mb-1">
                 <div class="flex items-center gap-2 truncate">
-                  <i data-lucide="${isImage ? 'image' : 'file-text'}" class="w-4 h-4 text-brand-600 shrink-0"></i>
+                  <i data-lucide="${isImage ? 'image' : 'file-text'}" class="w-4 h-4 text-emerald-600 shrink-0"></i>
                   <h4 class="font-bold text-xs text-slate-800 truncate" title="${f.name}">${f.name}</h4>
                 </div>
                 ${canDelete ? `
@@ -897,15 +1045,15 @@
               <p class="text-[10px] text-slate-400">Ukuran: ${f.size}</p>
             </div>
             <div class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
-              <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+              <a href="${f.url}" target="_blank" class="flex-1 text-center py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
                 Preview
               </a>
               ${isOfficeDoc ? `
-                <a href="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(f.downloadUrl)}" target="_blank" class="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold">
+                <a href="https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(f.downloadUrl)}" target="_blank" class="flex-1 text-center py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition">
                   Edit/Docs
                 </a>
               ` : ''}
-              <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-brand-50 text-brand-600 border border-brand-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+              <a href="${f.downloadUrl}" target="_blank" class="flex-1 text-center py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition">
                 <i data-lucide="download" class="w-3 h-3"></i> Unduh
               </a>
             </div>
@@ -957,20 +1105,7 @@
       document.getElementById('uploadModal').classList.remove('flex');
     }
 
-    // HELPER: MEMBACA CHUNK 1MB MENJADI BASE64
-    function readChunkAsBase64(blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = err => reject(err);
-        reader.readAsDataURL(blob);
-      });
-    }
-
-    // UPLOAD CARA CHUNKING 1MB PROXY (BEBAS CORS & ANIMASI % AKURAT)
+    // DIRECT BINARY RESUMABLE UPLOAD SCRIPT
     async function handleUploadSubmit(e) {
       e.preventDefault();
       const fileInput = document.getElementById('uploadFileInput');
@@ -990,7 +1125,6 @@
       percentText.innerText = '0%';
     
       try {
-        // 1. Minta Access Token resmi dari GAS
         const tokenRes = await fetch(`${API_URL}?action=getAuthToken`);
         const tokenJson = await tokenRes.json();
         if (tokenJson.status !== 'success' || !tokenJson.token) {
@@ -1000,7 +1134,6 @@
         const accessToken = tokenJson.token;
         statusLabel.innerText = "Membuka sesi Google Drive...";
     
-        // 2. Inisialisasi Resumable Upload langsung ke Google Drive API v3
         const metadata = {
           name: file.name,
           mimeType: file.type || 'application/octet-stream',
@@ -1021,9 +1154,8 @@
         }
     
         const uploadUrl = initRes.headers.get('Location');
-        statusLabel.innerText = "Mengunggah file...";
+        statusLabel.innerText = "Mengunggah berkas...";
     
-        // 3. Upload Binary File Langsung dari Browser dengan XHR Progress
         await new Promise((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open('PUT', uploadUrl, true);
@@ -1049,7 +1181,7 @@
           xhr.send(file);
         });
     
-        showToast("File berhasil diunggah!", 'success');
+        showToast("Berkas berhasil diunggah!", 'success');
         fileInput.value = '';
         closeUploadModal();
     
@@ -1063,12 +1195,9 @@
       }
     }
 
-    // ==========================================
     // PROGRESS JOBDESK
-    // ==========================================
-    async function fetchProgress(silent = false) {
+    async function fetchProgress() {
       const cacheKey = 'progress_tasks';
-
       const cached = await getCacheDB(cacheKey);
       if (cached) {
         cacheProgressTasks = cached;
@@ -1095,22 +1224,22 @@
       document.getElementById('dashStatProgress').innerText = `${percent}%`;
 
       const container = document.getElementById('listProgressTasks');
-      if (tasks.length === 0) { container.innerHTML = `<p class="text-slate-400 text-xs italic">Belum ada task.</p>`; return; }
+      if (tasks.length === 0) { container.innerHTML = `<p class="text-slate-400 text-xs italic py-2">Belum ada task.</p>`; return; }
 
       container.innerHTML = tasks.map(t => `
-        <div class="flex items-center justify-between p-3 rounded-xl border ${t.status === 'Selesai' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}">
+        <div class="flex items-center justify-between p-3.5 rounded-2xl border ${t.status === 'Selesai' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'}">
           <div class="flex items-center gap-3">
             <input type="checkbox" ${t.status === 'Selesai' ? 'checked' : ''} 
               ${currentUser.role !== 'admin' ? 'disabled' : ''}
               onchange="toggleTaskStatus(${t.rowId}, this.checked)"
-              class="w-4 h-4 text-brand-600 rounded border-slate-300 cursor-pointer">
+              class="w-4 h-4 text-emerald-600 rounded border-slate-300 cursor-pointer">
             <div>
-              <p class="text-xs font-semibold ${t.status === 'Selesai' ? 'line-through text-slate-400' : 'text-slate-800'}">[Edisi ${t.edisi}] ${t.jobdesk}</p>
+              <p class="text-xs font-bold ${t.status === 'Selesai' ? 'line-through text-slate-400' : 'text-slate-800'}">[Edisi ${t.edisi}] ${t.jobdesk}</p>
               <p class="text-[10px] text-slate-400">Diupdate: ${t.diupdate_oleh} (${t.tanggal})</p>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${t.status === 'Selesai' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${t.status}</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${t.status === 'Selesai' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-700'}">${t.status}</span>
             ${currentUser.role === 'admin' ? `
               <button onclick="handleDeleteJobdesk(${t.rowId})" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Hapus Task">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -1158,8 +1287,8 @@
         });
         const json = await res.json();
         if (json.status === 'success') {
-          showToast("Task berhasil disimpan!", 'success');
-          fetchProgress(true);
+          showToast("Task disimpan!", 'success');
+          fetchProgress();
         }
       } catch(e) {
         showToast("Gagal terhubung ke server", 'error');
@@ -1188,14 +1317,13 @@
       if (financeChartInstance) financeChartInstance.destroy();
       financeChartInstance = new Chart(ctx, {
         type: 'bar',
-        data: { labels: ['Pemasukan', 'Pengeluaran', 'Saldo Net'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#10b981', '#f43f5e', '#4f46e5'], borderRadius: 8 }] },
+        data: { labels: ['Pemasukan', 'Pengeluaran', 'Saldo Net'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#10b981', '#f43f5e', '#0f172a'], borderRadius: 12 }] },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
       });
     }
 
     async function fetchKeuangan() {
       const cacheKey = 'keuangan_data';
-
       const cached = await getCacheDB(cacheKey);
       if (cached) renderKeuanganUI(cached.data, cached.summary);
 
@@ -1223,12 +1351,12 @@
 
       const tbody = document.getElementById('tableKeuanganBody');
       tbody.innerHTML = dataList.map(item => `
-        <tr class="hover:bg-slate-50">
-          <td class="p-3.5 text-slate-500">${item.tanggal}</td>
-          <td class="p-3.5"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold ${item.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${item.jenis}</span></td>
-          <td class="p-3.5 font-bold text-slate-800">${item.kategori}</td>
-          <td class="p-3.5 text-slate-500">${item.keterangan || '-'}</td>
-          <td class="p-3.5 text-right font-bold ${item.jenis === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600'}">${item.jenis === 'Pemasukan' ? '+' : '-'} ${fmt(item.nominal)}</td>
+        <tr class="hover:bg-slate-50 transition">
+          <td class="p-4 text-slate-500">${item.tanggal}</td>
+          <td class="p-4"><span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold ${item.jenis === 'Pemasukan' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700'}">${item.jenis}</span></td>
+          <td class="p-4 font-bold text-slate-800">${item.kategori}</td>
+          <td class="p-4 text-slate-500">${item.keterangan || '-'}</td>
+          <td class="p-4 text-right font-black ${item.jenis === 'Pemasukan' ? 'text-emerald-600' : 'text-rose-600'}">${item.jenis === 'Pemasukan' ? '+' : '-'} ${fmt(item.nominal)}</td>
         </tr>
       `).join('');
     }
@@ -1243,26 +1371,32 @@
       fetchKeuangan();
     }
 
+    // ==========================================
+    // KELOLA USER & KATASANDI (ADMIN ONLY)
+    // ==========================================
     async function fetchUsersFromSheets() {
       if (currentUser.role !== 'admin') return;
-      const res = await fetch(`${API_URL}?action=getUsers`);
-      const json = await res.json();
-      if (json.status === 'success') {
-        cacheUsersList = json.data;
-        const tbody = document.getElementById('listUsersBody');
-        tbody.innerHTML = cacheUsersList.map(u => `
-          <tr class="hover:bg-slate-50">
-            <td class="p-3 font-bold text-slate-800">${u.username} <span class="font-normal text-slate-500">(${u.name})</span></td>
-            <td class="p-3"><span class="px-2 py-0.5 bg-brand-50 text-brand-700 rounded text-[10px] font-bold uppercase border border-brand-200">${u.role}</span></td>
-            <td class="p-3 text-right">
-              <div class="flex justify-end gap-3">
-                <button onclick="openEditUserModalByRowId(${u.rowId})" class="text-brand-600 hover:text-brand-700 font-bold text-xs">Edit</button>
-                ${u.username !== 'admin' ? `<button onclick="deleteUserFromSheets(${u.rowId})" class="text-rose-600 font-bold text-xs">Hapus</button>` : '<span class="text-slate-400 text-[10px]">Superadmin</span>'}
-              </div>
-            </td>
-          </tr>
-        `).join('');
-      }
+      try {
+        const res = await fetch(`${API_URL}?action=getUsers`);
+        const json = await res.json();
+        if (json.status === 'success') {
+          cacheUsersList = json.data;
+          const tbody = document.getElementById('listUsersBody');
+          tbody.innerHTML = cacheUsersList.map(u => `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="p-4 font-bold text-slate-800">${u.username} <span class="font-normal text-slate-500">(${u.name})</span></td>
+              <td class="p-4 font-mono text-emerald-700 font-bold">••••••••</td>
+              <td class="p-4"><span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-[10px] font-extrabold uppercase border border-emerald-200">${u.role}</span></td>
+              <td class="p-4 text-right">
+                <div class="flex justify-end gap-3">
+                  <button onclick="openEditUserModalByRowId(${u.rowId})" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-3 py-1.5 rounded-xl border border-emerald-200 transition">Ubah Sandi / Edit</button>
+                  ${u.username !== 'admin' ? `<button onclick="deleteUserFromSheets(${u.rowId})" class="text-rose-600 font-bold text-xs px-2 py-1 hover:bg-rose-50 rounded-xl transition">Hapus</button>` : '<span class="text-slate-400 text-[10px]">Superadmin</span>'}
+                </div>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch(e) {}
     }
 
     async function handleAddUser(e) {
@@ -1285,7 +1419,7 @@
       document.getElementById('editPassword').value = u.password;
       document.getElementById('editName').value = u.name;
       
-      const roleLabels = { admin: 'Admin Pusat', branding: 'Tim Branding', user: 'User / Tim Lain' };
+      const roleLabels = { admin: 'Admin Utama', branding: 'Tim Branding', user: 'User / Tim Lain' };
       selectDropdownOption('editRole', u.role, 'editRoleLabel', 'editRoleMenu', roleLabels[u.role] || u.role);
 
       document.getElementById('editUserModal').classList.remove('hidden');
@@ -1301,7 +1435,7 @@
       e.preventDefault();
       const btn = document.getElementById('btnSubmitEditUser');
       btn.disabled = true;
-      showToast("Menyimpan perubahan user...", 'info');
+      showToast("Menyimpan perubahan kata sandi...", 'info');
 
       await fetch(API_URL, {
         method: 'POST',
@@ -1315,7 +1449,7 @@
         })
       });
 
-      showToast("Perubahan user disimpan!", 'success');
+      showToast("Kata sandi berhasil diperbarui!", 'success');
       btn.disabled = false;
       closeEditUserModal();
       fetchUsersFromSheets();
@@ -1325,7 +1459,7 @@
       const u = cacheUsersList.find(item => item.rowId === rowId);
       const username = u ? u.username : 'User';
 
-      showDialog("Hapus User", `Hapus user '${username}' dari Google Sheets?`, true).then(async (yes) => {
+      showDialog("Hapus User", `Apakah Anda yakin ingin menghapus user '${username}'?`, true).then(async (yes) => {
         if (yes) {
           await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteUser', rowId }) });
           showToast("User berhasil dihapus!", 'info');
