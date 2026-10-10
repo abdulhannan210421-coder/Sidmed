@@ -976,83 +976,86 @@
       const fileInput = document.getElementById('uploadFileInput');
       const file = fileInput.files[0];
       if (!file || !activeFolderId) return;
-
+    
       const btn = document.getElementById('btnSubmitUpload');
       const progressBox = document.getElementById('uploadProgressBox');
       const progressBar = document.getElementById('uploadProgressBar');
       const percentText = document.getElementById('uploadPercentText');
       const statusLabel = document.getElementById('uploadStatusLabel');
-
+    
       btn.disabled = true;
       progressBox.classList.remove('hidden');
-      statusLabel.innerText = "Mempersiapkan sesi upload...";
+      statusLabel.innerText = "Meminta otoritas upload...";
       progressBar.style.width = '0%';
       percentText.innerText = '0%';
-
+    
       try {
-        // 1. Minta Sesi Upload ke Google Apps Script
-        const sessionRes = await fetch(API_URL, {
+        // 1. Minta Access Token resmi dari GAS
+        const tokenRes = await fetch(`${API_URL}?action=getAuthToken`);
+        const tokenJson = await tokenRes.json();
+        if (tokenJson.status !== 'success' || !tokenJson.token) {
+          throw new Error("Gagal mengambil token otorisasi.");
+        }
+    
+        const accessToken = tokenJson.token;
+        statusLabel.innerText = "Membuka sesi Google Drive...";
+    
+        // 2. Inisialisasi Resumable Upload langsung ke Google Drive API v3
+        const metadata = {
+          name: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          parents: [activeFolderId]
+        };
+    
+        const initRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable', {
           method: 'POST',
-          body: JSON.stringify({
-            action: 'initResumableUpload',
-            targetFolderId: activeFolderId,
-            fileName: file.name,
-            mimeType: file.type || 'application/octet-stream',
-            fileSize: file.size
-          })
+          headers: {
+            'Authorization': 'Bearer ' + accessToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(metadata)
         });
-
-        const sessionJson = await sessionRes.json();
-        if (sessionJson.status !== 'success' || !sessionJson.uploadUrl) {
-          showToast("Gagal membuat sesi upload: " + (sessionJson.message || 'Error tidak diketahui'), 'error');
-          btn.disabled = false;
-          progressBox.classList.add('hidden');
-          return;
+    
+        if (!initRes.ok) {
+          throw new Error("Gagal membuat sesi di Google Drive.");
         }
-
-        const uploadUrl = sessionJson.uploadUrl;
-        statusLabel.innerText = "Mengunggah berkas...";
-
-        // 2. Potong File per 1 MB (Kelipatan 256 KB)
-        const CHUNK_SIZE = 1024 * 1024; // 1 MB
-        let start = 0;
-
-        while (start < file.size) {
-          const end = Math.min(start + CHUNK_SIZE, file.size);
-          const chunkBlob = file.slice(start, end);
-          const chunkBase64 = await readChunkAsBase64(chunkBlob);
-
-          const chunkRes = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-              action: 'uploadChunkToGas',
-              uploadUrl: uploadUrl,
-              chunkBase64: chunkBase64,
-              startByte: start,
-              endByte: end - 1,
-              totalSize: file.size,
-              mimeType: file.type || 'application/octet-stream'
-            })
-          });
-
-          const chunkJson = await chunkRes.json();
-          if (chunkJson.status !== 'success') {
-            throw new Error(chunkJson.message || "Gagal mengunggah potongan file.");
-          }
-
-          start = end;
-          const percent = Math.round((start / file.size) * 100);
-          progressBar.style.width = percent + '%';
-          percentText.innerText = percent + '%';
-        }
-
+    
+        const uploadUrl = initRes.headers.get('Location');
+        statusLabel.innerText = "Mengunggah file...";
+    
+        // 3. Upload Binary File Langsung dari Browser dengan XHR Progress
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', uploadUrl, true);
+          xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    
+          xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+              const percent = Math.round((evt.loaded / evt.total) * 100);
+              progressBar.style.width = percent + '%';
+              percentText.innerText = percent + '%';
+            }
+          };
+    
+          xhr.onload = () => {
+            if (xhr.status === 200 || xhr.status === 201) {
+              resolve();
+            } else {
+              reject(new Error("Gagal transfer berkas: " + xhr.responseText));
+            }
+          };
+    
+          xhr.onerror = () => reject(new Error("Koneksi terputus saat upload."));
+          xhr.send(file);
+        });
+    
         showToast("File berhasil diunggah!", 'success');
         fileInput.value = '';
         closeUploadModal();
-
+    
         const currentType = !document.getElementById('majalahFilesView').classList.contains('hidden') ? 'majalah' : 'branding';
         openFolderDetail(activeFolderId, currentType);
-
+    
       } catch (err) {
         showToast("Gagal upload file: " + err.message, 'error');
       } finally {
